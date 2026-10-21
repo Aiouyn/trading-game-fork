@@ -24,8 +24,12 @@ function latestGrowthPrint(prints: PublicMacroView['prints']): LatestPrint | nul
  *  CONTRACTION: the latest growth print is below 0, or the published unemployment is at least 0.5 pp above its
  *  12-month low. EXPANSION / RECOVERY: the latest growth print is above 0. OVERHEATING: the published CPI is at
  *  least 1 pp above the inflation target and the published unemployment is below the NAIRU.
- *  The CPI print carries the published core CPI yoy (04 §3.15.1 "headline and core yoy"; the committee's
- *  OVERHEATING condition is on core CPI, and T04-06's rule reads the same published core CPI). */
+ *  ⚠ PENDING RULING (E-81, Systems): §3.3.6 states the OVERHEATING condition on *core* CPI, but under the
+ *  T04-16 card the CPI release's headline field is the one carried by `LatestPrint.actual` ("CPI headline yoy
+ *  (headline field), core yoy and mom" — the core yoy lives in the release row's extra fields, which the public
+ *  print does not carry). The comparison below therefore uses the published CPI print against target + 1 pp as a
+ *  stand-in; this is NOT a decision on which series the public CPI print carries. The comment must not claim the
+ *  print carries core CPI: as of T04-16, core yoy is unreachable by any consumer of the public view. */
 function cycleDataHolds(trueRegime: Regime, prints: PublicMacroView['prints'], unemployment12mLow: number | null,
   nairu: number, inflationTarget: number): boolean {
   const growth = latestGrowthPrint(prints);
