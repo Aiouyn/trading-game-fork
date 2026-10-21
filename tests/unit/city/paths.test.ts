@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execSync } from 'node:child_process';
-import { c16Verdict, currentBranch, isCityBranch } from './paths';
+import { c16Verdict, currentBranch, isCityBranch, OWNED_CONTENT } from './paths';
 
 const sh = (cmd: string): string | null => {
   try {
@@ -46,6 +46,16 @@ describe('C-16 scope (AC)', () => {
   it('a city branch touching only city paths (and the approved exceptions) passes', () => {
     expect(c16Verdict('city/industrial-basin-label', cityOnly)).toEqual({ status: 'pass' });
     expect(c16Verdict('v3/city-renderer', [...cityOnly, 'package.json', '.github/workflows/city.yml'])).toEqual({ status: 'pass' });
+  });
+  it('T10A-13: the two district-flags files are City Dev-owned; every other content file is not', () => {
+    expect(OWNED_CONTENT).toEqual(['packages/content/data/district-flags.json', 'packages/content/src/district-flags.test.ts']);
+    expect(c16Verdict('city/t10a-13', [...OWNED_CONTENT])).toEqual({ status: 'pass' });
+    expect(c16Verdict('city/t10a-13', ['packages/content/data/cities.json'])).toEqual({
+      status: 'fail', outside: ['packages/content/data/cities.json'],
+    });
+    expect(c16Verdict('city/t10a-13', ['packages/content/src/view.ts'])).toEqual({
+      status: 'fail', outside: ['packages/content/src/view.ts'],
+    });
   });
   it('branch comes from GITHUB_HEAD_REF first, then GITHUB_REF_NAME, then git; detached HEAD is unknown → skip', () => {
     expect(currentBranch({ GITHUB_HEAD_REF: 'v3/engine-x', GITHUB_REF_NAME: '6/merge' }, () => 'city/x')).toBe('v3/engine-x');
