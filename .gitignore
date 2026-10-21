@@ -40,6 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# python bytecode caches (export/build-plan/tools/*.py)
+__pycache__/
+*.py[cod]
+
 # test + sim output
 /test-results/
 /playwright-report/
