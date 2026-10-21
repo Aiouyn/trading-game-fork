@@ -170,6 +170,39 @@ test("T3-05 phase change cross-fades the label over --dur-base (0 under reduced 
   expect(await page.evaluate(() => getComputedStyle(document.querySelector(".mp-in")!).animationDuration)).toBe("0s");
 });
 
+/**
+ * The first paint of the phase label is opaque: there is nothing to fade from, so no fade runs.
+ *
+ * Why: the label is --fg-muted on the strip, and a label at partial opacity blends into the
+ * background and drops under the 4.5:1 text floor (4.34:1 at 73% opacity). axe reports that as a
+ * serious color-contrast violation, and the axe checks (S1-19, C4) sample the page at an arbitrary
+ * moment, so they caught the label mid-fade on the boot paint. That was the S1-19 flake.
+ *
+ * The cross-fade itself is unchanged: it only runs when a label replaces another one.
+ */
+test("T3-05 the first paint of the phase label is opaque; the cross-fade only runs on a change", async ({ page }, info) => {
+  desktopOnly(info.project.name);
+  await boot(page, "/");
+  const first = await page.getByTestId("phase-label").evaluate((el) => ({
+    opacity: getComputedStyle(el).opacity,
+    animation: getComputedStyle(el).animationName,
+    cls: el.className,
+  }));
+  expect(first).toEqual({ opacity: "1", animation: "none", cls: "mp-text" });
+
+  // A change still cross-fades: the incoming label fades in over --dur-base.
+  await bootPaused(page, `/?tick=${DAY + 284}`);
+  await page.clock.runFor(5000);
+  await expect(page.getByTestId("phase-label")).toHaveText("Market open · Port Avalon");
+  const changed = await page.getByTestId("phase-label").evaluate((el) => ({
+    cls: el.className,
+    duration: getComputedStyle(el).animationDuration,
+  }));
+  expect(changed.cls).toBe("mp-text mp-in");
+  expect(changed.duration).toBe("0.22s");
+});
+
+
 test("T3-06 nothing flashes more than once per second (opacity sampled per frame for 10 s)", async ({ page }, info) => {
   desktopOnly(info.project.name);
   await boot(page, "/");
