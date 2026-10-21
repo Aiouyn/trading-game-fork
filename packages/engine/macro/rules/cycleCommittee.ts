@@ -7,10 +7,10 @@
 import type { LatestPrint, PublicMacroView, Regime } from '../schema';
 
 /** The three GDP prints of 04 §3.15.1; the most recent of them by tick is the "latest growth print". */
-export const GDP_PRINTS: readonly ('GDP_ADV' | 'GDP_REV1' | 'GDP_REV2')[] = Object.freeze(['GDP_ADV', 'GDP_REV1', 'GDP_REV2'] as const);
+const GDP_PRINTS: readonly ('GDP_ADV' | 'GDP_REV1' | 'GDP_REV2')[] = Object.freeze(['GDP_ADV', 'GDP_REV1', 'GDP_REV2'] as const);
 
 /** The most recent of the three GDP prints, by tick; null when none has been published yet. */
-export function latestGrowthPrint(prints: PublicMacroView['prints']): LatestPrint | null {
+function latestGrowthPrint(prints: PublicMacroView['prints']): LatestPrint | null {
   let best: LatestPrint | null = null;
   for (const k of GDP_PRINTS) {
     const p = prints[k];
@@ -23,8 +23,10 @@ export function latestGrowthPrint(prints: PublicMacroView['prints']): LatestPrin
 /** The data condition of §3.3.6 for one true regime, given the published prints.
  *  CONTRACTION: the latest growth print is below 0, or the published unemployment is at least 0.5 pp above its
  *  12-month low. EXPANSION / RECOVERY: the latest growth print is above 0. OVERHEATING: the published CPI is at
- *  least 1 pp above the inflation target and the published unemployment is below the NAIRU. */
-export function cycleDataHolds(trueRegime: Regime, prints: PublicMacroView['prints'], unemployment12mLow: number | null,
+ *  least 1 pp above the inflation target and the published unemployment is below the NAIRU.
+ *  The CPI print carries the published core CPI yoy (04 §3.15.1 "headline and core yoy"; the committee's
+ *  OVERHEATING condition is on core CPI, and T04-06's rule reads the same published core CPI). */
+function cycleDataHolds(trueRegime: Regime, prints: PublicMacroView['prints'], unemployment12mLow: number | null,
   nairu: number, inflationTarget: number): boolean {
   const growth = latestGrowthPrint(prints);
   const jobs = prints.JOBS ?? null;

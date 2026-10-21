@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { dmath, makeRng, seedStream, sha256Concat, u32be, xoNext, type ParamsView, type Rng } from '@tycoon/engine-core';
 import { ALLOWED, HAZARD_WEIGHTS, P_BASE, applyCoupling, forceRegime, regimeParams, stepRegime, transitionMultipliers, type RegimeParams } from './regime';
-import { cycleLabelStep, latestGrowthPrint } from './cycleCommittee';
+import { cycleLabelStep } from './cycleCommittee';
 import { BLOC_DEFAULTS } from '../blocs';
 import type { LatestPrint, PublicMacroView, Regime } from '../schema';
 
@@ -18,7 +18,8 @@ const pv: ParamsView = {
 };
 const RP: RegimeParams = regimeParams(pv);
 
-/** A seeded xoshiro128** stream (02 §3.10.1) through the core Rng, with a draw counter for the stream-position tests. */
+/** A seeded xoshiro128** stream (02 §3.10.1) through the core Rng, with a draw counter for the stream-position tests.
+ *  The counter counts raw uint32 draws; the card's step calls `rng.next()` twice, so one step costs 2. */
 const testRng = (seed: string): { rng: Rng; draws: () => number } => {
   const st = seedStream(seed, 'PUBLIC', sha256Concat('T04-03-test', u32be(1)), 1);
   let n = 0;
@@ -170,6 +171,13 @@ describe('T04-03 the one-day regime step (04 §3.3.2)', () => {
     expect(forced.transitioned).toBe(true);
     expect(() => forceRegime('EXPANSION', 'RECOVERY', 'crs_ABC')).toThrow(/not in ALLOWED/);
   });
+  it('forceRegime on the regime the bloc is already in is a no-op, so the 21-day label lag is not restarted', () => {
+    const same = forceRegime('CONTRACTION', 'CONTRACTION', 'crs_ABC');
+    expect(same.next).toBe('CONTRACTION');
+    expect(same.transitioned).toBe(false);   // the caller keeps regimeSinceTick
+    expect(same.forced).toBe(true);
+    expect(same.forcedBy).toBe('crs_ABC');
+  });
 });
 
 describe('T04-03 AC 04#5: base chain with zero weights and the credit z of +2', () => {
@@ -187,7 +195,7 @@ describe('T04-03 AC 04#5: base chain with zero weights and the credit z of +2', 
     return { p: transitions / n, toOvH: toOvH / n, toCon: toCon / n };
   };
 
-  it('(a) with weightScale 0 the per-day transition probability is 1 − e^(−1/637) = 0.0015686 within 5%, split 0.80:0.20 within 0.02', () => {
+  it('AC-04-05 (a): with weightScale 0 the per-day transition probability is 1 − e^(−1/637) = 0.0015686 within 5%, split 0.80:0.20 within 0.02', () => {
     const m = transitionMultipliers('EXPANSION', { credit: 2 }, 0);   // the z-tilt is off
     const r = measure('ac04-5a', 2000000, m);
     const expected = 1 - dmath.exp(-1 / 637);
@@ -198,7 +206,7 @@ describe('T04-03 AC 04#5: base chain with zero weights and the credit z of +2', 
     expect(Math.abs(share - 0.80)).toBeLessThan(0.02);
   });
 
-  it('(b) with credit z = +2 the EXP→CON hazard is e^0.8 times the zero-z value within 10%', () => {
+  it('AC-04-05 (b): with credit z = +2 the EXP→CON hazard is e^0.8 times the zero-z value within 10%', () => {
     const zero = measure('ac04-5b-base', 2000000, transitionMultipliers('EXPANSION', {}, 0));
     const cred = measure('ac04-5b-credit', 2000000, transitionMultipliers('EXPANSION', { credit: 2 }));
     const ratio = cred.toCon / zero.toCon;
@@ -254,13 +262,25 @@ describe('T04-03 the chain obeys ALLOWED and the mean durations match §3.3.1', 
 
 describe('T04-03 the Cycle Committee label (04 §3.3.6)', () => {
   it('the latest growth print is the most recent of GDP_ADV, GDP_REV1 and GDP_REV2 by tick', () => {
+    // the committee reads the most recent of the three GDP prints by tick (04 §3.3.6)
+    const latestGrowthTick = (prints: PublicMacroView['prints']): number | null => {
+      let best: LatestPrint | null = null;
+      for (const k of ['GDP_ADV', 'GDP_REV1', 'GDP_REV2'] as const) {
+        const p = prints[k];
+        if (p === null || p === undefined) continue;
+        if (best === null || p.tick > best.tick) best = p;
+      }
+      return best === null ? null : best.tick;
+    };
     const prints = blankPrints();
-    expect(latestGrowthPrint(prints)).toBeNull();
+    expect(latestGrowthTick(prints)).toBeNull();
     prints.GDP_ADV = print('GDP_ADV', 100, 0.02);
     prints.GDP_REV1 = print('GDP_REV1', 300, 0.01);
     prints.GDP_REV2 = print('GDP_REV2', 500, -0.01);
-    expect(latestGrowthPrint(prints)?.kind).toBe('GDP_REV2');
-    expect(latestGrowthPrint(prints)?.actual).toBe(-0.01);
+    expect(latestGrowthTick(prints)).toBe(500);
+    // a revision older than the advance print does not win: the tick decides, not the kind order
+    prints.GDP_REV2 = print('GDP_REV2', 50, -0.05);
+    expect(latestGrowthTick(prints)).toBe(300);
   });
   it('a true CONTRACTION is not declared before day 21, and is declared on day 21 with a negative GDP print', () => {
     const prints = blankPrints();

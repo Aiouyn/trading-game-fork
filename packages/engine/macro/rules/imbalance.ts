@@ -12,7 +12,7 @@ export interface ImbalanceInputs {
 }
 
 /** §3.3.3: every z is clamped to [−3, 4] at storage. */
-export const Z_STORE_LO = -3, Z_STORE_HI = 4;
+const Z_STORE_LO = -3, Z_STORE_HI = 4;
 
 const num = (v: number, what: string): number => {
   if (!Number.isFinite(v)) throw new EngineFault('I0.macro_imbalance', `${what} = ${String(v)}`);

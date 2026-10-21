@@ -35,7 +35,7 @@ export const HAZARD_WEIGHTS: Readonly<Record<string, Partial<Record<ImbalanceKey
 });
 
 /** §3.3.2 step 3: the z-scores enter clamped to [−2, 3] inside the multiplier exponent. */
-export const Z_CLAMP_LO = -2, Z_CLAMP_HI = 3;
+const Z_CLAMP_LO = -2, Z_CLAMP_HI = 3;
 
 export interface RegimeParams { meanDays: Record<Regime, number>; minDays: Record<Regime, number> }
 
@@ -98,8 +98,9 @@ export interface RegimeStep { next: Regime; transitioned: boolean; hazard: numbe
  *  `m` holds the multipliers M_{s→s'} (already tilted by the z-scores and, for blocs, by the coupling).
  *  Exactly two draws are consumed from `rng` in every case (G8 fixed draw count): u1 decides whether the day
  *  transitions, u2 picks the target and is ignored when there is no transition.
- *  02 §3.10.5 makes `next()` the raw uint32 of the stream and `u53()` the 53-bit uniform; the card's two uniforms
- *  are the two raw draws scaled by 2^-32, so the step costs exactly two ledger draws (u53() would cost four). */
+ *  "Draw" here is one uint32 of the stream: the card (T04-03 step 1) prescribes `u1 = rng.next()`, `u2 = rng.next()`,
+ *  and 02 §3.10.5's ledger counts uint32 draws, so the step spends exactly two of them whatever the outcome.
+ *  `next()` is the raw uint32; scaled by 2^-32 it is the uniform on [0,1) the card compares against `1 − e^(−H)`. */
 export function stepRegime(rng: Rng, from: Regime, daysIn: number, m: Partial<Record<Regime, number>>, rp: RegimeParams): RegimeStep {
   const u1 = rng.next() / 4294967296, u2 = rng.next() / 4294967296;   // 2^-32: the raw uint32 as a uniform on [0,1)
   const minS = rp.minDays[from];
@@ -128,8 +129,11 @@ export function stepRegime(rng: Rng, from: Regime, daysIn: number, m: Partial<Re
 
 /** §3.3.2 step 7: a crisis may force a regime; a forced transition ignores the minimum length and carries the
  *  crisis id so the caller can log it in the WorldEvent cause chain. No draw is consumed (the forced path replaces
- *  the ordinary step, it does not add to it). */
+ *  the ordinary step, it does not add to it), and `hazard` is 0 because no hazard was evaluated.
+ *  Forcing the regime the bloc is already in is a no-op (`transitioned` false): the caller must then keep
+ *  `regimeSinceTick`, so the Cycle Committee's 21-day lag is not restarted by a crisis that changes nothing. */
 export function forceRegime(from: Regime, to: Regime, worldEventId: string): RegimeStep {
+  if (from === to) return { next: from, transitioned: false, hazard: 0, u1: 0, u2: null, forced: true, forcedBy: worldEventId };
   if (!ALLOWED[from].includes(to)) throw new EngineFault('I0.macro_regime_forced', `forced transition ${from}→${to} is not in ALLOWED`);
-  return { next: to, transitioned: true, hazard: 1, u1: 0, u2: null, forced: true, forcedBy: worldEventId };
+  return { next: to, transitioned: true, hazard: 0, u1: 0, u2: null, forced: true, forcedBy: worldEventId };
 }
