@@ -39,7 +39,11 @@ export function MarketPhase({ phase, city, halted = false, reconnecting = false,
       <span className={`dot mp-dot mp-${tone}`} aria-hidden="true" />
       <span className="mp-label">
         {old && <span className="mp-text mp-out" aria-hidden="true" key={`o-${old}`}>{old}</span>}
-        <span className="mp-text mp-in" key={label} data-testid="phase-label">{label}</span>
+        {/* The fade-in belongs to the cross-fade, so it only plays when the label replaces another one.
+            On the first paint there is nothing to fade from: the label is painted opaque. A label at
+            partial opacity blends --fg-muted into the strip and drops under the 4.5:1 text floor
+            (4.34:1 at 73% opacity), which axe reports as a serious color-contrast violation. */}
+        <span className={`mp-text${old ? " mp-in" : ""}`} key={label} data-testid="phase-label">{label}</span>
       </span>
       {announce}
     </span>
