@@ -12,7 +12,7 @@ import "./about.css";
 function ExternalLink({ href, children, newTab }: { href: string; children: React.ReactNode; newTab: string }) {
   return (
     <a className="about-ext" href={href} target="_blank" rel="noopener noreferrer">
-      {children}<span className="about-ext-glyph" data-testid="ext-glyph"><Glyph name="external" size={12} /></span><span className="sr-only"> {newTab}</span>
+      {children}<span className="about-ext-glyph" data-testid="ext-glyph"><Glyph name="external" size={14} /></span><span className="sr-only"> {newTab}</span>
     </a>
   );
 }

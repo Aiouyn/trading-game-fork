@@ -39,28 +39,34 @@ export function Appearance() {
   );
   return (
     <div className="appearance" data-testid="appearance">
-      <section aria-labelledby="ap-palette">
-        <Label id="ap-palette">{t.palette}</Label>
-        <PaletteSwatches />
-        <p className="muted set-hint">{t.paletteHint}</p>
-      </section>
-      <section aria-labelledby="ap-shell">
-        <Label id="ap-shell">{t.shell}</Label>
-        <ShellPicker />
-      </section>
-      <section><AppearancePreview /></section>
-      <section>
-        <Switch label={t.highContrast} checked={prefs.highContrast} onChange={(v) => set({ highContrast: v })} testId="switch-hc" />
-        <Switch label={t.colorBlind} checked={prefs.colorBlindPair} onChange={(v) => set({ colorBlindPair: v })} testId="switch-cb" />
-        <p className="muted set-hint">
-          {t.colorBlindHint}{" "}
-          <button type="button" className="set-link" data-testid="use-phosphor" onClick={() => store.getState().setPalette("phosphor")}>{t.usePhosphor}</button>
-        </p>
-      </section>
-      <section>
-        {modeRow(t.reduceMotion, "reducedMotion", osMotion)}
-        {modeRow(t.reduceTransparency, "reducedTransparency", osTransp)}
-      </section>
+      {/* Two columns on a wide pane (D-7): the Appearance page is a settings list, not a document.
+          Left: palette + shell. Right: text scale + preview, accessibility, motion / transparency. */}
+      <div className="appearance-col">
+        <section aria-labelledby="ap-palette">
+          <Label id="ap-palette">{t.palette}</Label>
+          <PaletteSwatches />
+          <p className="muted set-hint">{t.paletteHint}</p>
+        </section>
+        <section aria-labelledby="ap-shell">
+          <Label id="ap-shell">{t.shell}</Label>
+          <ShellPicker />
+        </section>
+      </div>
+      <div className="appearance-col">
+        <section><AppearancePreview /></section>
+        <section>
+          <Switch label={t.highContrast} checked={prefs.highContrast} onChange={(v) => set({ highContrast: v })} testId="switch-hc" />
+          <Switch label={t.colorBlind} checked={prefs.colorBlindPair} onChange={(v) => set({ colorBlindPair: v })} testId="switch-cb" />
+          <p className="muted set-hint">
+            {t.colorBlindHint}{" "}
+            <button type="button" className="set-link" data-testid="use-phosphor" onClick={() => store.getState().setPalette("phosphor")}>{t.usePhosphor}</button>
+          </p>
+        </section>
+        <section>
+          {modeRow(t.reduceMotion, "reducedMotion", osMotion)}
+          {modeRow(t.reduceTransparency, "reducedTransparency", osTransp)}
+        </section>
+      </div>
     </div>
   );
 }

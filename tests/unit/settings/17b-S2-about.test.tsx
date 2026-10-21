@@ -76,10 +76,10 @@ describe("17B S2 About", () => {
     expect(writeText).toHaveBeenCalledWith(el.querySelector("[data-testid=about-version]")!.textContent);
   });
 
-  it("Studio #38: external links carry the 12 px external glyph after the label, plus sr-only text", () => {
+  it("Studio #38: external links carry the 14 px external glyph after the label, plus sr-only text", () => {
     const a = mount().querySelector("a[target]")!;
     const g = a.querySelector("[data-testid=ext-glyph] svg")!;
-    expect(g.getAttribute("width")).toBe("12");
+    expect(g.getAttribute("width")).toBe("14");
     expect(g.getAttribute("data-glyph")).toBe("external");
     expect(a.querySelector(".sr-only")!.textContent).toContain("opens in a new tab");
     expect(a.lastElementChild!.className).toBe("sr-only");

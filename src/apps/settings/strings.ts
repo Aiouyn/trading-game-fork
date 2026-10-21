@@ -26,6 +26,8 @@ const EN = {
   shellThumb: "Shell artwork coming later", // [P] placeholder alt
   textScale: "Text scale",
   percent: (n: number) => `${n} percent`,
+  scaleMin: "100%",
+  scaleMax: "200%",
   previewLabel: "Preview",
   previewNw: "Net worth",
   previewRow: "Halcyon Shipping",
@@ -75,6 +77,8 @@ const FR: Strings = {
   shellThumb: "Illustration de la coque à venir",
   textScale: "Taille du texte",
   percent: (n: number) => `${n} pour cent`,
+  scaleMin: "100%",
+  scaleMax: "200%",
   previewLabel: "Aperçu",
   previewNw: "Patrimoine net",
   previewRow: "Halcyon Shipping",

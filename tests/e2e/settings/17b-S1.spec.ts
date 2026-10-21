@@ -233,6 +233,47 @@ test("Screenshots: Appearance per palette / scale", async ({ page }, info) => {
   }
 });
 
+test("Studio #7: the stacked segment and the full Appearance pane have visual proof", async ({ page }, info) => {
+  await openAppearance(page, info);
+  // B-1: a stacked segment (text scale >= 1.5) must be shown, at a size where the 28 px row, the 6 px
+  // radius, the hairline separators and the label fit can be judged. The old shot was a 159x47 crop of
+  // the *horizontal* segment at scale 1, so "segments stack" had no visual evidence at all.
+  const s = page.getByTestId("text-scale");
+  await s.fill("1.5"); await s.blur();
+  const seg = page.getByTestId("seg-reducedMotion");
+  await expect(seg).toHaveAttribute("data-stacked", "scale");
+  // The whole control, not a tiny crop: the two segments and both rules.
+  await seg.screenshot({ path: `${SHOTS}/segment-stacked-scale1.5-1440x900.png` });
+  // The stacked segment: every row is a full-width bar at least 28 px tall, and exactly one carries
+  // the --fg selection marker. The 6 px radius belongs to the control (the container), as in the
+  // horizontal case: the container clips the corners.
+  const segBox = await seg.evaluate((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { radius: parseFloat(cs.borderTopLeftRadius), stacked: e.classList.contains("stacked") }; });
+  expect(segBox.radius).toBe(6);
+  expect(segBox.stacked).toBe(true);
+  const rows = await seg.locator("button").evaluateAll((els) => els.map((e) => {
+    const r = e.getBoundingClientRect();
+    const cs = getComputedStyle(e);
+    return { w: Math.round(r.width), h: Math.round(r.height), marker: cs.boxShadow !== "none" };
+  }));
+  expect(rows).toHaveLength(3);
+  for (const r of rows) { expect(r.h).toBeGreaterThanOrEqual(28); expect(r.w).toBeGreaterThan(100); }
+  expect(rows.filter((r) => r.marker)).toHaveLength(1); // exactly one checked row
+  await s.fill("1"); await s.blur();
+});
+
+test("Studio #7: the credits list is visible, and its role words are right", async ({ page }, info) => {
+  await boot(page, "/settings/SET-08");
+  const about = page.getByTestId("settings-about");
+  await expect(about).toBeVisible();
+  // B-3: the credits list was never visible in any shot (the pane was cut at the CREDITS heading).
+  const credits = about.locator(".about-list li");
+  await expect(credits).toHaveCount(5);
+  await expect(credits.first()).toContainText("Avalon Studio · design");
+  // The list is reachable by scrolling: the last credit is inside the pane's scroll area.
+  await credits.last().scrollIntoViewIfNeeded();
+  await expect(credits.last()).toBeInViewport();
+});
+
 test("S1-14: About in-app (S2-01..07)", async ({ page, context }, info) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await boot(page, "/settings/SET-08");
@@ -269,7 +310,12 @@ test("S1-14: About in-app (S2-01..07)", async ({ page, context }, info) => {
     expect(await page.locator(".about-licences thead").evaluate((e) => getComputedStyle(e).position)).toBe("absolute");
     await page.screenshot({ path: `${SHOTS}/about-scale2-390x844.png`, fullPage: true });
   } else {
+    // The About pane scrolls: the shot is taken at the top, and a second one scrolled to the credits,
+    // so the credits list has pixel evidence (it was cut at the heading in every earlier shot).
     await page.screenshot({ path: `${SHOTS}/about-ink-brass-1440x900.png` });
+    await about.locator(".about-list li").last().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: `${SHOTS}/about-credits-1440x900.png` });
     await page.getByTestId("set-nav-SET-02").click();
     await page.getByTestId("swatch-broadsheet").click();
     await page.getByTestId("set-nav-SET-08").click();
@@ -292,11 +338,13 @@ test("Studio #38: switch / segment / swatch badge / thumbnail / glyph geometry",
   // Switch track / knob.
   const track = await box("[data-testid=switch-hc] .set-switch-track");
   near(track.w, 32); near(track.h, 18); near(track.radius, 9);
-  expect(track.bg).toBe(await rgb(page, "var(--line)"));
   const knob = await box("[data-testid=switch-hc] .set-switch-knob");
   near(knob.w, 14); near(knob.h, 14); near(knob.x - track.x, 2); near(knob.y - track.y, 2);
-  expect(knob.bg).toBe(await rgb(page, "var(--fg)"));
+  expect(knob.bg).toBe(await rgb(page, "var(--bg0)"));
   expect(knob.tr).toBe("0.12s"); expect(knob.ease).toBe("ease-out");
+  // D-4: the OFF track is --fg-disabled, not --line (--line on --win is 1.24–1.53:1, so "off" read as "disabled").
+  expect(track.bg).toBe(await rgb(page, "var(--fg-disabled)"));
+  expect(track.border).toBe(await rgb(page, "var(--fg-disabled)"));
   await page.getByTestId("switch-hc").click();
   await page.waitForTimeout(200);
   const on = await box("[data-testid=switch-hc] .set-switch-track"), knobOn = await box("[data-testid=switch-hc] .set-switch-knob");
@@ -314,13 +362,27 @@ test("Studio #38: switch / segment / swatch badge / thumbnail / glyph geometry",
   if (!isPhone(info)) near(segBtn.h, 28);
   expect(segBtn.bg).toBe(await rgb(page, "var(--win2)"));
   expect(await page.locator("[data-testid=seg-reducedMotion] [aria-checked=true]").evaluate((e) => getComputedStyle(e).fontWeight)).toBe("500");
+  // D-5: the selection is also a 2px --fg marker; the --win2 fill alone is only 1.08–1.15:1 on --win.
+  const marker = await page.locator("[data-testid=seg-reducedMotion] [aria-checked=true]").evaluate((e) => getComputedStyle(e).boxShadow);
+  const fg = await rgb(page, "var(--fg)");
+  const [fr, fg2, fb] = fg.match(/[\d.]+/g)!.map(Number);
+  expect(marker).toContain(`rgb(${fr}, ${fg2}, ${fb})`);
   // Swatch badge, thumbnail, cosmetic name.
   await expect(page.locator("[data-testid=swatch-check]")).toHaveCount(1);
   await expect(page.locator("[aria-checked=true] [data-testid=swatch-check]")).toHaveCount(1);
   const badge = await box("[data-testid=swatch-check]"); near(badge.w, 12); near(badge.h, 12);
   const thumb = await box(".shell-thumb"); near(thumb.w, 32); near(thumb.h, 20);
   expect(await page.locator(".shell-thumb").first().evaluate((e) => getComputedStyle(e).borderTopStyle)).toBe("dashed");
+  // D-3: the thumbnail border is --fg-disabled, so it does not read as a broken image.
+  expect(thumb.border).toBe(await rgb(page, "var(--fg-disabled)"));
+  expect(thumb.bg).toBe(await rgb(page, "var(--win2)"));
   await expect(page.getByTestId("shell-cos_shell_glass")).toContainText("Glass · Cosmetic");
+  // D-2: the preview card has a surface, so it reads as a card and not as a floating fragment.
+  const preview = await box("[data-testid=scale-preview]");
+  expect(preview.bg).toBe(await rgb(page, "var(--win2)"));
+  // D-6: the text-scale track has labelled ends, so the thumb at the left reads as the minimum.
+  await expect(page.getByTestId("scale-min")).toHaveText("100%");
+  await expect(page.getByTestId("scale-max")).toHaveText("200%");
   // Reduced motion: the knob moves instantly.
   await page.getByTestId("seg-reducedMotion").getByRole("radio", { name: "On", exact: true }).click();
   expect(parseFloat((await box("[data-testid=switch-hc] .set-switch-knob")).tr)).toBe(0);
@@ -342,9 +404,9 @@ test("Studio #38: switch / segment / swatch badge / thumbnail / glyph geometry",
   const ys = await page.locator("[data-testid=seg-reducedMotion] button").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().y));
   expect(ys[1]).toBeGreaterThan(ys[0]); expect(ys[2]).toBeGreaterThan(ys[1]);
   expect(await page.locator(".set-seg button").evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length)).toBe(0);
-  // External glyph in About: 12 px, --fg-muted, after the label.
+  // External glyph in About: 14 px, --fg, after the label (B-4: 12 px in --fg-muted read as a speck).
   if (isPhone(info)) await page.locator(".appbar .icon-btn").click();
   await page.getByTestId("set-nav-SET-08").click();
-  const g = await box("[data-testid=ext-glyph] svg"); near(g.w, 12); near(g.h, 12);
-  expect(await page.locator("[data-testid=ext-glyph]").first().evaluate((e) => getComputedStyle(e).color)).toBe(await rgb(page, "var(--fg-muted)"));
+  const g = await box("[data-testid=ext-glyph] svg"); near(g.w, 14); near(g.h, 14);
+  expect(await page.locator("[data-testid=ext-glyph]").first().evaluate((e) => getComputedStyle(e).color)).toBe(await rgb(page, "var(--fg)"));
 });
