@@ -5,11 +5,10 @@
 //   - the card's values table : export/build-plan/cards/10A/T10A-13.md
 //   - 22 §3.2 / §3.3           : export/vision-review/complete/22-CONTENT-CATALOGS.md
 //
-// E-80 HOLD: Systems is ruling whether 22 §3.2 gains R flags for Meridia San Telmo Islands,
-// Meridia Grand Canal and Tessan Tower Bund (the Designer's riverOrCanal set has 18, 22 §3.2
-// has 15). Until that ruling lands, those 3 rows carry riverOrCanal:false as an explicit
-// placeholder and are exempt from the two checks that depend on it. When E-80 lands, drop them
-// from E80_PENDING_RIVER and the strict checks cover them with no other edit.
+// E-80 (landed): R is ADDED for Meridia San Telmo Islands, Meridia Grand Canal and Tessan Tower
+// Bund. The Designer's riverOrCanal:true on those three rows stands as authored, 22 §3.2 now
+// carries the three R flags, and the two sets converge at 18. No district is on hold any more,
+// so there is no placeholder list and no exemption: every row is covered by the strict checks.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -24,8 +23,8 @@ const ROLES: readonly DistrictRole[] = ['CBD', 'PORT', 'INDUSTRIAL', 'MIXED_CORE
 /** E-78.1: a port district's terrain role must be one of these. */
 const WATERFRONT_ROLES: readonly string[] = ['waterfront', 'industrial_shore', 'island'];
 
-/** E-80: the 3 districts whose riverOrCanal field is on hold (placeholder: false). */
-const E80_PENDING_RIVER: readonly string[] = [
+/** E-80.1: the three districts 22 §3.2 gains R for; the Designer's authored values stand. */
+const E80_R_ADDED: readonly string[] = [
   'dst_meridia_san_telmo_islands',
   'dst_meridia_grand_canal',
   'dst_tessan_tower_bund',
@@ -109,8 +108,6 @@ interface FlagRow {
 const ROWS: FlagRow[] = flags.districts as FlagRow[];
 const BY_ID = new Map(ROWS.map((r) => [r.distId, r]));
 const SPEC_BY_ID = new Map(SPEC_ROWS.map((s) => [s.distId, s]));
-const CARD_BY_ID = new Map(CARD_ROWS.map((c) => [c.distId, c]));
-const pending = new Set(E80_PENDING_RIVER);
 
 /**
  * T10A-12 classify.ts `districtRole`, in the order the card states:
@@ -156,8 +153,7 @@ describe('T10A-13 district-flags', () => {
       expect(r!.station).toBe(c.station);
       expect(r!.cbd).toBe(c.cbd);
       expect(r!.role).toBe(c.role);
-      // riverOrCanal is on hold for the 3 E-80 districts: the file carries the placeholder.
-      expect(r!.riverOrCanal).toBe(pending.has(c.distId) ? false : c.riverOrCanal);
+      expect(r!.riverOrCanal).toBe(c.riverOrCanal);
     }
   });
 
@@ -188,13 +184,23 @@ describe('T10A-13 district-flags', () => {
 
   it('AC-10A-13-RULES: role equals the T10A-12 derivation for every row', () => {
     for (const r of ROWS) {
-      if (pending.has(r.distId)) continue;   // E-80 hold: the river flag is not transcribed yet
       const tier = SPEC_BY_ID.get(r.distId)!.tier;
       expect(r.role, `${r.distId}`).toBe(districtRole(tier, r));
     }
-    // The 3 held rows are exactly the ones Systems is ruling on, and nothing else is held.
-    expect([...pending].sort()).toEqual([...E80_PENDING_RIVER].sort());
-    for (const id of pending) expect(CARD_BY_ID.get(id)!.riverOrCanal).toBe(true);
+  });
+
+  it('AC-10A-13-E80: the 3 E-80.1 districts carry R, and no role changed', () => {
+    // E-80.1: R is added for these three; the Designer's riverOrCanal:true stands as authored.
+    for (const id of E80_R_ADDED) expect(BY_ID.get(id)!.riverOrCanal, id).toBe(true);
+    // No role changes: San Telmo Islands stays MIXED_RIVER, Grand Canal TROPHY_RES, Tower Bund CBD.
+    expect(BY_ID.get('dst_meridia_san_telmo_islands')!.role).toBe('MIXED_RIVER');
+    expect(BY_ID.get('dst_meridia_grand_canal')!.role).toBe('TROPHY_RES');
+    expect(BY_ID.get('dst_tessan_tower_bund')!.role).toBe('CBD');
+    // The two sets converge at 18: the Designer's R set and 22 §3.2's R set are identical.
+    const emitted = ROWS.filter((r) => r.riverOrCanal);
+    expect(emitted.length).toBe(18);
+    expect(new Set(emitted.map((r) => r.distId)).size).toBe(18);
+    expect(SPEC_R_IDS.size).toBe(18);
   });
 
   it('AC-10A-13-RIVER-FLAG (E-78.2): riverOrCanal follows the 22 §3.2 R flags and the riverside terrain', () => {
