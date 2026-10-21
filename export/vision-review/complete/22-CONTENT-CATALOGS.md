@@ -248,11 +248,11 @@ Peril classes: 0 none, 1 low, 2 moderate, 3 high (08 maps classes to frequency).
 | cty_port_avalon | brick, brass, slate | plane, oak | harbour brick, glass towers | 2 | 2 | 0 | 0 | 1 | 1 | C: Eastside Docks, Industrial Basin, Old Harbor; R: Riverside Lofts; H: Glasshill, Summit Estates |
 | cty_lakemont | glass, cedar, limestone | cedar, birch | campus modern, lake towers | 1 | 1 | 0 | 1 | 1 | 2 | C (lake): Lakefront, Northshore, Cedar Point; H: The Bluffs |
 | cty_redmesa | terracotta, sand, steel | palo verde, desert willow | adobe low-rise, solar canopies | 1 | 0 | 1 | 2 | 3 | 0 | F: Canyon Row; H: Mesa Heights, Saguaro Hills |
-| cty_meridia | ochre, marble, terracotta | cypress, oleander | canal palazzi, mainland blocks | 3 | 1 | 1 | 0 | 2 | 0 | C: Lido Strand, San Telmo Islands, Grand Canal, New Lagoon, Arsenal Yards |
+| cty_meridia | ochre, marble, terracotta | cypress, oleander | canal palazzi, mainland blocks | 3 | 1 | 1 | 0 | 2 | 0 | C: Lido Strand, San Telmo Islands, Grand Canal, New Lagoon, Arsenal Yards; R: San Telmo Islands, Grand Canal |
 | cty_valcourt | limestone, slate, iron | lime, chestnut | river terraces, mills | 2 | 0 | 0 | 0 | 1 | 1 | R: Foundry Bank, Lock Quarter, Southern Mills; H: Cathedral Rise |
 | cty_belmara | timber, stone, copper | larch, pine | chalets, grand hotels | 1 | 0 | 1 | 0 | 0 | 3 | C (lake): Lakeside Promenade; H: Vineyard Slopes, Pinecrest |
 | cty_kaiyo | steel, neon glass, tile | ginkgo, cherry | dense towers, alley blocks | 2 | 2 | 3 | 0 | 1 | 0 | C: Harbor Freight, Reclaim Grid, Shiomi Docks; F: Loop Central, Neon Ward; R: Riverbend, Delta Markets |
-| cty_tessan | concrete, jade tile, steel | banyan, bamboo | delta shophouses, fab halls | 3 | 3 | 1 | 0 | 2 | 0 | C/R: Fab Island, Delta Wharf, Canal Homes, Market Bridge |
+| cty_tessan | concrete, jade tile, steel | banyan, bamboo | delta shophouses, fab halls | 3 | 3 | 1 | 0 | 2 | 0 | C/R: Fab Island, Delta Wharf, Canal Homes, Market Bridge; R: Tower Bund |
 | cty_mirako | lacquer, timber, stone | maple, pine | temple roofs, terrace houses | 1 | 1 | 2 | 1 | 1 | 1 | R: Riverside Arcades; H: Terrace Steps, Temple Hill, Maple Slopes; F: Temple Hill |
 | cty_nordhaven | white render, birch, glass | birch, spruce | pitched roofs, quay blocks | 1 | 2 | 0 | 0 | 0 | 3 | C: Harbor Works, Fjord Quarter, Opera Quay, Isle Mouth; H: Birch Hills |
 | cty_skarvik | red timber, granite | rowan, pine | fishing sheds, rig yards | 2 | 3 | 0 | 0 | 0 | 2 | C: Rig Yards, Herring Quay, Skerries, Harbor Exchange |
