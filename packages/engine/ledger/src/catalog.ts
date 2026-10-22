@@ -18,11 +18,11 @@ export interface CodeRow {
   elasticSectors?: string[]; restrictedOk?: boolean; requestableBy?: number[] | 'ALL'; illicit?: boolean;
 }
 type Leg = number | '@ASSET' | '@' | null;
-/** One row of catalog.csv v2 (generated into catalog-data.ts). `derived` = class defaults, no card row (TODO(systems)). */
+/** One row of the canonical catalog.csv (generated into catalog-data.ts). `derived` = class defaults from a Systems ruling or an erratum registration, not a card row. E-81 point 1: `derived` is a PROVENANCE MARKER only - the row is a full member of the catalog and counts. `derivedFrom` names the erratum that produced it. */
 export interface CatalogSeedRow {
   code: string; cls: FlowClass; owner: number; cf: CashFlow | ''; tpl: readonly TemplateId[]; legA: Leg; legB: Leg;
   sectors: readonly string[]; restrictedOk: boolean; requestableBy: readonly number[] | 'ALL'; illicit: boolean;
-  taxTag?: string; family?: string; derived?: true;
+  taxTag?: string; family?: string; derived?: true; derivedFrom?: string;
 }
 
 /** 03 §3.3.3 last paragraph (T03-02 :47-48). */
