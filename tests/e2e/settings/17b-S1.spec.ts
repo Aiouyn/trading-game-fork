@@ -17,6 +17,33 @@ const rgb = (page: Page, value: string, sel = "body") => page.evaluate(([v, s]) 
 }, [value, sel]);
 const noHScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth
   && [...document.querySelectorAll(".settings *")].every((e) => e.getBoundingClientRect().right <= window.innerWidth + 0.5));
+// A committed PNG has to be reproducible, and two things were not (measured: two back-to-back shoots of
+// this spec, same commit and same build, differed in 10 of 20 PNGs). The TickRing sweep restarts on every
+// 5 s tick, so the 22 px ring in the header lands on a different arc each shot (17-40 px per shot). And a
+// shot taken while a transition the test itself started is still running catches a mid-frame: the switch
+// is 120 ms, the palette and high-contrast changes re-theme every colour, and the colour-blind shot
+// differed in 1.3 % of its pixels. Neither is a product change: this pins the ring's arc for the shoot and
+// awaits the animations' own `finished` promises, so there is no sleep and no timeout.
+const PIN = ".tickring-sweep{animation:none!important;stroke-dashoffset:62!important}";
+async function shutter(page: Page) {
+  await page.evaluate((css) => {
+    if (document.documentElement.dataset.shotPin) return;
+    const el = document.createElement("style");
+    el.textContent = css;
+    document.head.append(el);
+    document.documentElement.dataset.shotPin = "1";
+  }, PIN);
+  // The settle is bounded and exits the first time nothing is running; a replaced transition rejects its
+  // own `finished`, so the loop re-reads the list rather than trusting one snapshot.
+  for (let i = 0; i < 5; i++) {
+    const running = await page.evaluate(async () => {
+      const run = document.getAnimations().filter((a) => a.playState === "running" && (a.effect?.getTiming().iterations ?? 1) !== Infinity);
+      await Promise.all(run.map((a) => a.finished.catch(() => undefined)));
+      return run.length;
+    });
+    if (running === 0) return;
+  }
+}
 
 async function openAppearance(page: Page, info: { project: { name: string } }, q = "") {
   await boot(page, `/settings${q}`);
@@ -29,6 +56,7 @@ test("S1-01: frame — 8 sections; desktop selects Appearance; phone pushes with
   await expect(page.locator(".set-nav-item")).toHaveCount(8);
   if (isPhone(info)) {
     await expect(page.getByTestId("appearance")).toHaveCount(0);
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/root-390x844.png` });
     await page.getByTestId("set-nav-SET-02").click();
     await expect(page.locator("#phone-app-title")).toHaveText("Appearance");
@@ -168,6 +196,7 @@ test("S1-08: text scale 2.0 at phone — no horizontal scroll, no truncation", a
   const clipped = await page.evaluate(() => [...document.querySelectorAll(".settings .num, .settings .set-row-label, .settings .shell-name")]
     .filter((e) => e.scrollWidth > e.clientWidth + 1).length);
   expect(clipped).toBe(0);
+  await shutter(page);
   await page.screenshot({ path: `${SHOTS}/appearance-scale2-390x844.png`, fullPage: true });
 });
 
@@ -177,14 +206,14 @@ test("S1-09: high contrast and colour-blind switches", async ({ page }, info) =>
   await expect(page.getByTestId("switch-hc")).toHaveAttribute("aria-checked", "true");
   expect(await html(page, "hc")).toBe("1");
   expect(await cssVar(page, "--line")).toBe(await cssVar(page, "--fg-disabled"));
-  if (!isPhone(info)) await page.screenshot({ path: `${SHOTS}/appearance-hc-1440x900.png` });
+  if (!isPhone(info)) { await shutter(page); await page.screenshot({ path: `${SHOTS}/appearance-hc-1440x900.png` }); }
   await page.getByTestId("switch-hc").click();
   await page.getByTestId("swatch-broadsheet").click();
   await page.getByTestId("switch-cb").click();
   expect(await html(page, "cb")).toBe("1");
   expect((await cssVar(page, "--gain")).toUpperCase()).toBe("#08657A");
   expect((await cssVar(page, "--loss")).toUpperCase()).toBe("#A8235A");
-  if (!isPhone(info)) await page.screenshot({ path: `${SHOTS}/appearance-cb-broadsheet-1440x900.png` });
+  if (!isPhone(info)) { await shutter(page); await page.screenshot({ path: `${SHOTS}/appearance-cb-broadsheet-1440x900.png` }); }
 });
 
 test("S1-10: reduce motion / transparency segments; System follows the OS", async ({ page }, info) => {
@@ -220,15 +249,16 @@ test("S1-11: roles, hit areas, axe 0 serious", async ({ page }, info) => {
 test("Screenshots: Appearance per palette / scale", async ({ page }, info) => {
   await openAppearance(page, info);
   if (isPhone(info)) {
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/appearance-scale1-390x844.png`, fullPage: true });
     await page.getByTestId("swatch-broadsheet").click();
-    await page.waitForTimeout(400);
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/appearance-broadsheet-390x844.png`, fullPage: true });
     return;
   }
   for (const p of PALETTE_IDS) {
     await page.getByTestId(`swatch-${p}`).click();
-    await page.waitForTimeout(400);
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/appearance-${p}-1440x900.png` });
   }
 });
@@ -246,9 +276,11 @@ test("Studio #7: the stacked segment and the full Appearance pane have visual pr
     // B-2: on the phone the stacked rows are full-bleed (358 px) and 44 px tall under pointer:coarse,
     // so the width, the 6 px radius and the hairline separators need a PAGE shot, not an element crop.
     await seg.evaluate((e) => e.scrollIntoView({ block: "center", inline: "center" }));
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/segment-stacked-scale1.5-390x844.png` });
   } else {
     // The whole control, not a tiny crop: the two segments and both rules.
+    await shutter(page);
     await seg.screenshot({ path: `${SHOTS}/segment-stacked-scale1.5-1440x900.png` });
   }
   // The stacked segment: every row is a full-width bar at least 28 px tall, and exactly one carries
@@ -313,6 +345,7 @@ test("S1-14: About in-app (S2-01..07)", async ({ page, context }, info) => {
   await page.getByTestId("about-copy").click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(version);
   if (isPhone(info)) {
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/about-scale1-390x844.png`, fullPage: true });
     await page.locator(".appbar .icon-btn").click();
     await page.getByTestId("set-nav-SET-02").click();
@@ -321,18 +354,20 @@ test("S1-14: About in-app (S2-01..07)", async ({ page, context }, info) => {
     await page.getByTestId("set-nav-SET-08").click();
     expect(await noHScroll(page)).toBe(true);
     expect(await page.locator(".about-licences thead").evaluate((e) => getComputedStyle(e).position)).toBe("absolute");
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/about-scale2-390x844.png`, fullPage: true });
   } else {
     // The About pane scrolls: the shot is taken at the top, and a second one scrolled to the credits,
     // so the credits list has pixel evidence (it was cut at the heading in every earlier shot).
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/about-ink-brass-1440x900.png` });
     await about.locator(".about-list li").last().scrollIntoViewIfNeeded();
-    await page.waitForTimeout(200);
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/about-credits-1440x900.png` });
     await page.getByTestId("set-nav-SET-02").click();
     await page.getByTestId("swatch-broadsheet").click();
     await page.getByTestId("set-nav-SET-08").click();
-    await page.waitForTimeout(400);
+    await shutter(page);
     await page.screenshot({ path: `${SHOTS}/about-broadsheet-1440x900.png` });
   }
   // S2-04: integrity report opens the Markets ComingLater window, no navigation error.
@@ -359,7 +394,7 @@ test("Studio #38: switch / segment / swatch badge / thumbnail / glyph geometry",
   expect(track.bg).toBe(await rgb(page, "var(--fg-disabled)"));
   expect(track.border).toBe(await rgb(page, "var(--fg-disabled)"));
   await page.getByTestId("switch-hc").click();
-  await page.waitForTimeout(200);
+  await shutter(page); // the 120 ms knob travel: settle it instead of sleeping through it
   const on = await box("[data-testid=switch-hc] .set-switch-track"), knobOn = await box("[data-testid=switch-hc] .set-switch-knob");
   expect(on.bg).toBe(await rgb(page, "var(--fg-muted)"));
   near(knobOn.x - knob.x, 14);
