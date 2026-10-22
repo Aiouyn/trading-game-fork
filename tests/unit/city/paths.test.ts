@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execSync } from 'node:child_process';
-import { c16Verdict, currentBranch, isCityBranch } from './paths';
+import { c16Verdict, currentBranch, isCityBranch, OWNED_CONTENT } from './paths';
 
 const sh = (cmd: string): string | null => {
   try {
@@ -47,11 +47,64 @@ describe('C-16 scope (AC)', () => {
     expect(c16Verdict('city/industrial-basin-label', cityOnly)).toEqual({ status: 'pass' });
     expect(c16Verdict('v3/city-renderer', [...cityOnly, 'package.json', '.github/workflows/city.yml'])).toEqual({ status: 'pass' });
   });
+  it('T10A-13: the two district-flags files are City Dev-owned; every other content file is not', () => {
+    expect(OWNED_CONTENT).toEqual(['packages/content/data/district-flags.json', 'packages/content/src/district-flags.test.ts']);
+    expect(c16Verdict('city/t10a-13', [...OWNED_CONTENT])).toEqual({ status: 'pass' });
+    expect(c16Verdict('city/t10a-13', ['packages/content/data/cities.json'])).toEqual({
+      status: 'fail', outside: ['packages/content/data/cities.json'],
+    });
+    expect(c16Verdict('city/t10a-13', ['packages/content/src/view.ts'])).toEqual({
+      status: 'fail', outside: ['packages/content/src/view.ts'],
+    });
+  });
   it('branch comes from GITHUB_HEAD_REF first, then GITHUB_REF_NAME, then git; detached HEAD is unknown → skip', () => {
     expect(currentBranch({ GITHUB_HEAD_REF: 'v3/engine-x', GITHUB_REF_NAME: '6/merge' }, () => 'city/x')).toBe('v3/engine-x');
     expect(currentBranch({ GITHUB_HEAD_REF: '', GITHUB_REF_NAME: 'city/x' }, () => null)).toBe('city/x');
     expect(currentBranch({}, () => 'v3/city-renderer')).toBe('v3/city-renderer');
     expect(currentBranch({}, () => 'HEAD')).toBeNull();
     expect(c16Verdict(null, ['packages/engine/a.ts']).status).toBe('skip');
+  });
+});
+
+describe('C-16 negative-space probe: the OWNED_CONTENT grant must not leak', () => {
+  // A scope grant that silently becomes a wildcard rots unnoticed, because the files it
+  // wrongly admits are exactly the files nobody looks at. QA probed the grant with 11 paths;
+  // only the two named files may pass. This keeps that probe in the repo.
+  const NAMED = ['packages/content/data/district-flags.json', 'packages/content/src/district-flags.test.ts'];
+
+  it('exactly the two named files pass; the other nine probe paths still FAIL', () => {
+    // The two named files pass.
+    for (const p of NAMED) {
+      expect(c16Verdict('city/t10a-13', [p]), p).toEqual({ status: 'pass' });
+    }
+
+    // Every one of these must still be flagged as outside City Dev's scope.
+    const mustFail = [
+      'packages/content/data/district-flags.json.bak',        // a backup extension
+      'Packages/Content/Data/district-flags.json',            // a different case
+      'packages/content/data/nested/district-flags.json',     // a nested path
+      'packages/content/data/district-flags.json ',           // a trailing space
+      'packages/content/data/district-flags.jsonx',           // a longer filename
+      'packages/content/data/district-flags.json.bak.json',   // a longer filename, extension in the middle
+      'packages/content/data/district-flags.json.bak.bak',    // two extensions
+      'packages/content/data/other.json',                     // a different file in the same folder
+      'packages/engine/data/district-flags.json',             // a different package
+    ];
+    expect(mustFail.length).toBe(9);
+    for (const p of mustFail) {
+      expect(c16Verdict('city/t10a-13', [p]), p).toEqual({ status: 'fail', outside: [p] });
+    }
+  });
+
+  it('the grant is a list of exact paths, not a prefix or a pattern', () => {
+    // A prefix would admit every file under packages/content/.
+    expect(c16Verdict('city/t10a-13', ['packages/content/data/cities.json'])).toEqual({
+      status: 'fail', outside: ['packages/content/data/cities.json'],
+    });
+    expect(c16Verdict('city/t10a-13', ['packages/content/src/blocs.ts'])).toEqual({
+      status: 'fail', outside: ['packages/content/src/blocs.ts'],
+    });
+    // And the list holds exactly two entries - not one more, not one fewer.
+    expect(OWNED_CONTENT).toHaveLength(2);
   });
 });
