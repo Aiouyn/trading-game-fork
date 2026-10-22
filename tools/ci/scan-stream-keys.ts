@@ -12,7 +12,7 @@
 // suppression. E-69 (AC-02-06-REGISTRY-SCOPE): roots packages/engine/ and src/, extensions .ts .tsx .mts .js, and the exclusions
 // are an explicit list of exact paths plus *.test.{ts,tsx,mts,js}, all in scan-allowlist.json (printed on every run).
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { STREAM_REGISTRY, matchStream, streamPrefix } from '../../packages/engine/core/rng/registry';
@@ -44,6 +44,33 @@ export function formatAllowlist(a: ScanAllowlist): string {
 function excludedPath(rel: string, a: ScanAllowlist): boolean {
   return a.paths.some((p) => (p.endsWith('/') ? `${rel}/`.startsWith(p) : rel === p));
 }
+
+/**
+ * Normalise a path to POSIX separators.
+ *
+ * The split is on BOTH separators, not on `sep`, so the result is the same on every platform. That
+ * matters for two reasons:
+ *   1. it fixes the scanner on Windows, where `relative()` and `join()` produce `\`; and
+ *   2. it makes the normalisation TESTABLE on Linux, where `sep` is already `/` and a split on
+ *      `sep` alone would leave a backslash untouched - so a regression of this class would be
+ *      invisible in CI. Splitting on both separators means the committed test fails on EVERY
+ *      platform if the normalisation is narrowed back to `sep`.
+ */
+export const toPosix = (p: string): string => p.split(/[\\/]/).join('/');
+
+/**
+ * The repo-relative path of a file, ALWAYS in POSIX form.
+ *
+ * This is the ONE place a repo-relative path is computed, and every site that reports, compares or
+ * keys on such a path goes through it. That is deliberate: the scanner used to normalise the
+ * separator in `walk()` but NOT at the two places where findings are reported, so on Windows the
+ * reported paths came back as `packages\engine\...` while the exclusion allowlist and every
+ * expectation are POSIX. Normalising once, here, means the reporting sites CANNOT drift apart from
+ * each other or from the allowlist.
+ *
+ * The file NAME is untouched: only the separator is normalised.
+ */
+const relOf = (repoRoot: string, p: string): string => toPosix(relative(repoRoot, p));
 /** Test-file exclusion: the suffix is matched on a FILE's basename only, never on a directory (QA #36: evil.test.ts/prod.ts is scanned). */
 export function isExcludedTestFile(basename: string, a: ScanAllowlist): boolean {
   return a.testFileSuffixes.some((x) => basename.endsWith(x));
@@ -51,7 +78,7 @@ export function isExcludedTestFile(basename: string, a: ScanAllowlist): boolean 
 
 function walk(repoRoot: string, dir: string, a: ScanAllowlist, out: string[]): void {
   for (const name of readdirSync(dir).sort()) {
-    const p = join(dir, name), rel = relative(repoRoot, p).split(sep).join('/');
+    const p = join(dir, name), rel = relOf(repoRoot, p);
     if (excludedPath(rel, a)) continue;
     if (statSync(p).isDirectory()) walk(repoRoot, p, a, out);
     else if (a.extensions.some((x) => name.endsWith(x)) && !isExcludedTestFile(name, a)) out.push(p);
@@ -89,8 +116,10 @@ interface Helpers { names: Record<string, Record<string, true>>; hintFor: Record
 function collectHelpers(repoRoot: string, files: string[], res: ScanResult): Helpers {
   const out: Record<string, Record<string, true>> = {}, hintFor: Record<string, string> = {}, bodies = new Set<string>();
   for (const f of files) {
-    if (!f.endsWith('/streams.ts')) continue;
-    const rel = relative(repoRoot, f), src = ts.createSourceFile(f, readFileSync(f, 'utf8'), ts.ScriptTarget.ES2022, true);
+    const rel = relOf(repoRoot, f);
+    // The suffix test uses the SAME normalised path that is reported, so it cannot disagree with it.
+    if (!rel.endsWith('/streams.ts')) continue;
+    const src = ts.createSourceFile(f, readFileSync(f, 'utf8'), ts.ScriptTarget.ES2022, true);
     for (const st of src.statements) {
       if (!ts.isVariableStatement(st)) continue;
       for (const d of st.declarationList.declarations) {
@@ -145,7 +174,7 @@ export function scanStreamKeys(repoRoot: string, allow: ScanAllowlist = loadAllo
   const hint = (spec: StreamSpec | undefined): string => (spec === undefined ? 'build the key with a registered streams.ts template helper'
     : hintFor[spec.pattern] ?? `no registered helper builds ${spec.pattern}: add one to a streams.ts`);
   for (const f of files) {
-    const rel = relative(repoRoot, f), src = ts.createSourceFile(f, readFileSync(f, 'utf8'), ts.ScriptTarget.ES2022, true);
+    const rel = relOf(repoRoot, f), src = ts.createSourceFile(f, readFileSync(f, 'utf8'), ts.ScriptTarget.ES2022, true);
     const line = (n: ts.Node): number => src.getLineAndCharacterOfPosition(n.getStart(src)).line + 1;
     const reported = new Set<ts.Node>();
     const report = (a: ts.Expression, spec: StreamSpec | undefined): void => {
@@ -182,7 +211,7 @@ export function scanStreamKeys(repoRoot: string, allow: ScanAllowlist = loadAllo
 /** CLI body: prints the allowlist, the result and one line per finding; returns the exit code (1 on any finding). */
 export function runCli(root: string, log: (s: string) => void = console.log, err: (s: string) => void = console.error): number {
   const allow = loadAllowlist();
-  err(`ci:streams allowlist (${relative(root, ALLOWLIST_FILE).split(sep).join('/')}):\n${formatAllowlist(allow)}`);
+  err(`ci:streams allowlist (${relOf(root, ALLOWLIST_FILE)}):\n${formatAllowlist(allow)}`);
   const r = scanStreamKeys(root, allow);
   log(JSON.stringify(r, null, 2));
   for (const c of r.callSiteKeys) err(`${c.file}:${c.line}: stream key ${c.text} not built by a registered helper (E-68): ${c.hint}`);
