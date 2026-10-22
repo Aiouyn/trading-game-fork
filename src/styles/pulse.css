@@ -12,7 +12,12 @@
 .mp-text { grid-area: 1 / 1; }
 .mp-in { animation: mp-fade-in var(--dur-base) var(--ease-out) both; }
 .mp-out { animation: mp-fade-out var(--dur-base) var(--ease-out) both; }
-@keyframes mp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* The cross-fade starts at --mp-fade-start, not 0. The label is --fg-muted on the strip, and a label at
+   partial opacity blends into the strip and drops under the 4.5:1 text floor, so a fade from 0 exposed
+   the label to a serious axe color-contrast violation for roughly the first 50 ms of every cross-fade
+   (broadsheet is the binding case: it needs opacity >= 0.921 to clear 4.5:1). The fade still runs and
+   still looks like a fade; it just never dips below the floor. */
+@keyframes mp-fade-in { from { opacity: var(--mp-fade-start); } to { opacity: 1; } }
 @keyframes mp-fade-out { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
 /* TickRing */
 .tickring { flex: none; display: inline-flex; }
