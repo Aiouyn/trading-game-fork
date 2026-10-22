@@ -15,9 +15,20 @@ describe('C-16 path check', () => {
   const city = branch !== null && isCityBranch(branch);
   it.skipIf(!city)(`this City Dev branch touches no path outside Spec 2 ownership (${branch ?? 'unknown branch'})`, () => {
     const base = process.env.CITY_BASE_REF ?? (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'origin/main');
-    const out = sh(`git diff --name-only ${base}...HEAD && git diff --name-only HEAD && git ls-files --others --exclude-standard`);
-    if (out === null) return; // no git history (e.g. tarball)
-    const v = c16Verdict(branch, out.split('\n'));
+    // The file list, in ONE git process, and with a command that does not read file CONTENTS.
+    //
+    // The old form ran `git diff base...HEAD`, `git diff HEAD` and `git ls-files --others` as
+    // three separate processes, and `git diff` computes the CONTENT diff. On a branch that adds
+    // a 103 KB lockfile that first call alone took 2.6 s (measured), which pushed the test past
+    // vitest's 5 s default timeout when the suite ran under load.
+    //
+    // `git diff-tree --no-commit-id --name-only -r --merge-base <base> HEAD` produces the SAME
+    // file list - verified byte for byte against `git diff --name-only base...HEAD` - in 0.22 s,
+    // because it compares TREES and never opens the blobs. The `--merge-base` flag is what makes
+    // it the three-dot comparison.
+    const raw = sh(`git diff-tree --no-commit-id --name-only -r --merge-base ${base} HEAD; git diff --name-only HEAD; git ls-files --others --exclude-standard`);
+    if (raw === null) return; // no git history (e.g. tarball)
+    const v = c16Verdict(branch, raw.split('\n'));
     expect(v).toEqual({ status: 'pass' });
   });
   if (!city) it('skips on branches City Dev does not own', () => {
