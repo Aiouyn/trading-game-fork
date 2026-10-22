@@ -3,10 +3,12 @@
 import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
-const all = ['core', 'ledger', 'macro', 'content', 'params'];
+const all = ['core', 'ledger', 'macro', 'content', 'params', 'citygen'];
 const want = process.argv.slice(2).length ? process.argv.slice(2) : all;
 for (const p of want) {
-  const dir = p === 'content' || p === 'params' ? `packages/${p}` : `packages/engine/${p}`; // T22A-01: content, T02-11 / E-70: params live outside engine
+  // content, params and citygen live outside packages/engine/ (T22A-01: content, T02-11 / E-70:
+  // params, T10A-12 U0: citygen).
+  const dir = p === 'content' || p === 'params' || p === 'citygen' ? `packages/${p}` : `packages/engine/${p}`;
   if (!existsSync(`${dir}/package.json`)) { console.log(`skip ${dir} (absent)`); continue; }
   for (const cmd of [existsSync(`${dir}/node_modules`) ? null : 'npm ci', 'npm run typecheck', 'npm run lint', 'npm test']) {
     if (!cmd) continue;

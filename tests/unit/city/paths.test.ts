@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execSync } from 'node:child_process';
-import { c16Verdict, currentBranch, isCityBranch, OWNED_CONTENT } from './paths';
+import { c16Verdict, currentBranch, isCityBranch, OWNED_CITYGEN, OWNED_CONTENT } from './paths';
 
 const sh = (cmd: string): string | null => {
   try {
@@ -106,5 +106,87 @@ describe('C-16 negative-space probe: the OWNED_CONTENT grant must not leak', () 
     });
     // And the list holds exactly two entries - not one more, not one fewer.
     expect(OWNED_CONTENT).toHaveLength(2);
+  });
+});
+
+describe('T10A-12: the OWNED_CITYGEN grant covers the package this card creates, and nothing else', () => {
+  // The 20 exact paths: the package skeleton (6, including the lockfile), the seven placement
+  // sources, the five placement tests, and the two CI files.
+  const NAMED: readonly string[] = [
+    'packages/citygen/package.json',
+    'packages/citygen/package-lock.json',
+    'packages/citygen/tsconfig.json',
+    'packages/citygen/vitest.config.ts',
+    'packages/citygen/eslint.config.mjs',
+    'packages/citygen/.gitignore',
+    'packages/citygen/src/placement/types.ts',
+    'packages/citygen/src/placement/rules.ts',
+    'packages/citygen/src/placement/classify.ts',
+    'packages/citygen/src/placement/buffers.ts',
+    'packages/citygen/src/placement/suitability.ts',
+    'packages/citygen/src/placement/assign.ts',
+    'packages/citygen/src/placement/index.ts',
+    'packages/citygen/test/placement/rules.test.ts',
+    'packages/citygen/test/placement/classify.test.ts',
+    'packages/citygen/test/placement/buffers.test.ts',
+    'packages/citygen/test/placement/suitability.test.ts',
+    'packages/citygen/test/placement/assign.test.ts',
+    'scripts/engine-check.mjs',
+    '.github/workflows/engine.yml',
+  ];
+
+  it('the grant is exactly the twenty named paths', () => {
+    expect(OWNED_CITYGEN).toHaveLength(20);
+    for (const p of NAMED) expect(OWNED_CITYGEN, p).toContain(p);
+    for (const p of OWNED_CITYGEN) expect(NAMED, p).toContain(p);
+  });
+
+  it('every named path passes the check on a City Dev branch', () => {
+    for (const p of NAMED) {
+      expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'pass' });
+    }
+  });
+
+  it('a City Dev branch touching the whole package at once passes', () => {
+    expect(c16Verdict('city/t10a-12', NAMED)).toEqual({ status: 'pass' });
+  });
+
+  it('the negative-space probe: every other packages/** path still FAILS', () => {
+    // A scope grant that silently becomes a wildcard rots unnoticed, because the files it
+    // wrongly admits are exactly the files nobody looks at. This probe lives in the repo, not in
+    // a reviewer's session.
+    const mustFail = [
+      'packages/citygen/other/thing.ts',          // a future file under the package
+      'packages/citygen/src/index.ts',            // T10A-03's file, NOT this card's
+      'packages/citygen/src/parcels.ts',          // T10A-03's file
+      'packages/citygen/src/placement/predicates.ts', // a file this card does not create
+      'packages/citygen/test/determinism.test.ts',    // T10A-03's test
+      'packages/citygen/package.json.bak',       // a backup extension
+      'packages/citygen/package.jsonx',          // a longer filename
+      'packages/citygen/package-lock.json.bak',  // a backup of the lockfile
+      'packages/engine/core/index.ts',           // another package entirely
+      'packages/content/data/cities.json',       // another content file
+      'packages/content/src/view.ts',            // another content file
+      'packages/params/src/index.ts',            // another package
+      'scripts/lint/other.mjs',                  // another script
+      '.github/workflows/other.yml',              // another workflow
+    ];
+    expect(mustFail.length).toBe(14);
+    for (const p of mustFail) {
+      expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'fail', outside: [p] });
+    }
+  });
+
+  it('the grant is a list of exact paths, not a prefix or a directory glob', () => {
+    // A prefix would admit every file under packages/citygen/, and the card says it must not.
+    for (const p of [
+      'packages/citygen/src/placement/predicates.ts',
+      'packages/citygen/src/index.ts',
+      'packages/citygen/test/determinism.test.ts',
+    ]) {
+      expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'fail', outside: [p] });
+    }
+    // And the list holds exactly twenty entries - not one more, not one fewer.
+    expect(OWNED_CITYGEN).toHaveLength(20);
   });
 });
