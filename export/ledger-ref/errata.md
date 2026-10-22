@@ -2386,3 +2386,70 @@ This entry rules on the **jobs** use-class map that 10 §3.3 item 1 states in pr
 - It does **not** ask the owner anything. The Producer's four questions (the map, the erratum, the count cap, and the catalogue provenance) are all answered here or in E-81; the owner's calls that remain open are the NPC TRANSFER switch (E-50/E-45) and the zoning-vocabulary scope, and neither is decided by this entry.
 
 **Files this entry changes.** `export/ledger-ref/errata.md` (this entry); `export/vision-review/complete/10-REAL-ESTATE-AND-CITIES.md` §3.3 item 1 (the **jobs** use-class map, the **derivation R1–R6**, the `DATACENTER` **site-use** clause, the zoning clause, and the `CIVIC`/`GREEN`/`RES` clause; **MAP S — §3.6.2's property-type use column and §3.19.4's zoning — is unchanged**); `export/spec/backups/E82/10-REAL-ESTATE-AND-CITIES.md.pre-E82.md` (the pre-edit copy of 10); `export/build-plan/packs/10A/T10A-05.md` (regenerated from the card, because that card's `spec:` list carries `10§3.3` and the pack embeds the section verbatim).
+
+## E-83 — The NPC TRANSFER ruling: a flow between a player entity and an NPC sector is a **TRANSFER** to that sector's account, and the elastic mint/burn boundary is retired (Systems, owner ruling via Producer, FINAL, 2026-10-22)
+The owner has ruled the question E-45 item 1 left open and E-50, E-21's addendum and E-39/E-43/E-44 all pointed at: **NPC flows are TRANSFERs to NPC sector accounts.** This entry records the ruling, states the model it replaces, measures the inventory it moves, and defines the one card that applies it. **It edits no spec table and no catalog row** — deliberately: the flip is **118 rows**, it changes T03-02's class histogram and E-81's pinned spec counts in the same breath, and it would race the open T03 PRs (#21, #27) if it landed as a data edit today. The application is a **card** (point 7), and the spec and the catalog change together when it lands, so the repo is never half-flipped.
+
+### 1. The ruling, and what it replaces.
+
+**Ruling (owner, via the Producer, 2026-10-22): a flow between a player entity and an NPC sector is a TRANSFER to that NPC sector's account, not a FAUCET or a SINK.** The money moves; it is not created or destroyed at that boundary.
+
+It replaces **03 §3.5.2 items 2–4**, which say the elastic sectors' spending money is *virtual* (`1009 Elastic money`, allowed to go negative, backed by `sys:2909`), that an elastic→core payment is a **FAUCET** (`ELASTIC_IN`, outside money minted for the payee) and a core→elastic payment is a **SINK** (`ELASTIC_OUT`, money burned). It also replaces **16 §3.2.5**'s closing sentence ("Player payments to NPC firms are SINKs on the same boundary"). 03 §3.5.2 item 1 already says the elastic sectors "hold real claims booked exactly like any entity", and 16 §3.2.5 already says households and firms are "real balance-sheet entities" whose balances "never go negative" — **the mint/burn boundary was the part that contradicted the rest of the model, and the ruling removes it.** That is why this is a simplification, not a new mechanism.
+
+### 2. The model after the ruling.
+
+- **`1009` is a real account per NPC sector** (`hh` one per city, `frm` one per bloc, `row` one), with a balance that is **audited non-negative** (16 §3.2.5) and is **not** backed by `sys:2909`.
+- **A player→sector payment** debits the payer's cash and credits the sector's `1009`; **a sector→player payment** does the reverse. Both are **TRANSFER**s. No `sys` leg, no mint, no burn.
+- **The sector is funded by its receipts**, and for `row` by 04's nominal-GDP closure (`ROW_NPC_INCOME`, 16 §3.2.5), which is how the aggregate economy's spending is sized to GDP. The closure already exists; the ruling makes the ledger's booking of it consistent with it.
+- **The aggregates are unchanged.** `M0_sys = sys:2900 = cbk:1910` still holds; `ΔM0_sys = Σ FAUCET − Σ SINK` and I17 (`sys:3990`) still hold — they are now identities over the **remaining** FAUCET/SINK codes (true issuance and true burn), not over the NPC boundary. **No number, rate or balance target moves**; what changes is which account a payment lands in.
+- **What a FAUCET and a SINK still are:** FAUCET = `MINT` only (outside money created: start cash, grants, ads, compensation); SINK = `BURN` only (outside money destroyed: fines' sink share, levies, licence fees). `ELASTIC_IN` and `ELASTIC_OUT` are retired from the class→template map.
+
+### 3. The inventory, measured on `catalog.csv` (456 rows).
+
+**118 rows carry an NPC sector and are classed FAUCET or SINK: 88 SINK/`ELASTIC_OUT` + 30 FAUCET/`ELASTIC_IN`.** By sector: SINK — `frm` 52, `hh,frm` 15, `hh` 9, `row` 8, `hh,row` 2, `hh,frm,row` 1, `frm,row` 1; FAUCET — `hh,frm` 9, `frm` 8, `row` 5, `hh` 3, `hh,frm,row` 2, `hh,row` 2, `frm,row` 1. Every one of them is `ELASTIC_OUT` or `ELASTIC_IN`; there is no NPC-sector FAUCET or SINK on a `MINT`/`BURN` template, so the sweep is exactly the elastic boundary.
+
+**E-45 item 1's "85 ELASTIC_OUT SINK rows" is corrected by measurement: 88 SINK + 30 FAUCET = 118.** The 85 was the **single-sector** rows only (69 SINK + 16 FAUCET); the 33 rows whose `sector` names more than one sector (`hh,frm`, `hh,frm,row`, …) were not counted, and they include the bank, insurance, sovereign and macro rows (`BNK_ELASTIC_*`, `INS_ELASTIC_*`, `SOV_DEBT_ELASTIC_*`, `MAC_GOV_SPENDING_ELASTIC`, `MAC_TAX_FROM_ELASTIC`, `EXC_/RAT_/CCP_OPEX_ELASTIC`, `NPC_ACTOR_CONSUMPTION`).
+
+**102 of the 118 are in the 03 §3.4-origin subset** (74 SINK + 28 FAUCET) — i.e. two thirds of the sweep is spec-table rows, which is why the spec tables move with the card.
+
+### 4. The mapping: class, then template.
+
+- **Class → `TRANSFER` for all 118.** No exceptions among the payment rows.
+- **Template → `PAY` where the flow is a payment** for goods, services, rent, fees, interest, wages, claims or taxes (an income or expense leg, 4xxx/5xxx, on one side); **`SWAP_ASSET` where the flow exchanges balance-sheet items** — property title (`PROP_PURCHASE_FROM_ELASTIC`, `PROP_SALE_TO_ELASTIC`), inventory title (`LP_INVENTORY_BUY_ROW`/`SELL_ROW`, `COLL_BUY_FROM_NPC`/`SALE_TO_NPC`), fund units (`FND_ELASTIC_SUBSCRIPTION`/`REDEMPTION`, `ETF_ELASTIC_CREATION`/`REDEMPTION`), tranches (`SPV_ELASTIC_*`), deposits (`BNK_ELASTIC_DEPOSIT_IN`/`OUT`, `PROP_TENANT_DEPOSIT_IN`/`OUT`) and debt (`SOV_DEBT_ELASTIC_PLACEMENT`).
+- **The per-row template is the card's to set, row by row, against the legs** — this entry does not guess it. What it fixes is the rule, and the rule is decidable from the two legs: a 4xxx/5xxx leg means the flow books income or expense (`PAY`); two balance-sheet legs mean it moves a title (`SWAP_ASSET`).
+
+### 5. Two rows that are NOT transfers, and are excluded from the sweep.
+
+`BNK_ELASTIC_LOAN_DISBURSE` (SINK/`ELASTIC_OUT`, legs 1300 → 2200) and `BNK_ELASTIC_LOAN_REPAY` (FAUCET/`ELASTIC_IN`, legs 2200 → 1300) are **bank credit**, not payments: a bank lending to a household **creates a deposit** (`CREDIT_CREATE`) and repayment **destroys** it (`CREDIT_DESTROY`). That is the one place in the sweep where money really is created or destroyed, and it is 07's model, not the NPC boundary's. **This entry does not reclassify them**; they keep their current class until 07 and Quant rule, and the card must leave them alone and tag them. `BNK_ELASTIC_DEPOSIT_IN`/`OUT` are **not** in this exception — they move an existing deposit and are ordinary transfers.
+
+### 6. The counts after the flip, measured (so nobody has to guess them).
+
+| | now | after the flip |
+|---|---|---|
+| catalog, FAUCET | 42 | **12** |
+| catalog, SINK | 113 | **25** |
+| catalog, TRANSFER | 247 | **365** |
+| catalog, CREDIT_CREATE / CREDIT_DESTROY / REVALUE | 12 / 13 / 29 | 12 / 13 / 29 |
+| **total** | **456** | **456** |
+
+The **03 §3.4-origin subset** (384 rows as measured in the catalog; E-81 pins 382 after PD-12's two removals) becomes **FAUCET 8, SINK 12, TRANSFER 312, CREDIT_CREATE 12, CREDIT_DESTROY 13, REVALUE 27 = 384**. **E-81's `SPEC_COUNTS_03` (FAUCET 36, SINK 86, TRANSFER 208) is therefore superseded by this entry when the card lands**, and the card must restate it **from the seed** (E-81's own rule: a count of a data file is derived, never written down). Until the card lands, E-81's constants are correct for the repo as it stands — this entry changes no data, so nothing goes red today.
+
+### 7. The card that applies it (Producer to assign).
+
+**T03-02 amendment + a catalog/seed regeneration**, one change, with these ACs:
+
+- **AC-03-ER83-NPC-TRANSFER (contract):** no catalog row whose flow is between a player entity and an NPC sector is classed FAUCET or SINK; every one is TRANSFER, and its template is `PAY` or `SWAP_ASSET` per point 4.
+- **AC-03-ER83-NO-ELASTIC (contract):** no catalog row carries `ELASTIC_IN` or `ELASTIC_OUT`; `CLASS_TEMPLATES` gives FAUCET `[MINT]` and SINK `[BURN]`; the validator refuses an elastic template on any class.
+- **AC-03-ER83-COUNTS (counting):** the seed's per-class histogram equals the "after" column of point 6, and the §3.4-origin subset is asserted **from the seed**, with `SPEC_COUNTS_03` restated (point 6), never hard-coded from this paragraph.
+- **AC-03-ER83-CREDIT-EXCEPTION (scope):** `BNK_ELASTIC_LOAN_DISBURSE` and `BNK_ELASTIC_LOAN_REPAY` are **not** reclassified by the card; they keep their class, carry a `derivedFrom: E-83` note, and are the only two rows the AC exempts.
+- **AC-03-ER83-SPEC (spec):** 03 §3.5.2 items 2–4, 03 §3.4.1/§3.4.2's 102 rows, 16 §3.2.5 and the T03-02 card's histogram constants change **in the same commit** as the catalog, so no commit ships a spec that disagrees with the seed.
+
+### 8. What this entry does NOT do.
+
+- **It changes no catalog row, no spec table, no seed and no test.** The repo stays consistent until the card lands.
+- **It does not decide the two bank-credit rows** (§5) — that is 07's and Quant's.
+- **It does not move a single number, rate or balance target.** Which account a payment lands in is not a price, a rate or a stock.
+- **It does not change `M0_sys`, I17 or any identity's definition** — only the set of codes the identity sums over.
+- **It does not reopen the count question.** E-81's rule stands: the live catalog's size is derived from the seed; the §3.4-origin subset is the only pinned number, and the card restates it.
+
+**Files this entry changes.** `export/ledger-ref/errata.md` (this entry) — and nothing else.
