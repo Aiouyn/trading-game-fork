@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { ALLOWLIST_FILE, formatAllowlist, isExcludedTestFile, loadAllowlist, runCli, scanStreamKeys } from './scan-stream-keys';
+import { ALLOWLIST_FILE, formatAllowlist, isExcludedTestFile, loadAllowlist, runCli, scanStreamKeys, toPosix } from './scan-stream-keys';
 
 function fixture(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'scan-streams-'));
@@ -164,6 +164,13 @@ describe('AC-02-06-REGISTRY-SCOPE (E-69): roots packages/engine/ and src/, .ts/.
   it('(e3) CLI exits 1 for a literal under a directory named evil.test.ts', () => {
     expect(runCli(fixture({ 'packages/engine/macro/evil.test.ts/prod.ts': lit }), () => undefined, () => undefined)).toBe(1);
   });
+  it('(f) E-72: the node_modules exclusions are exactly these three exact directory paths (no glob, no bare node_modules/, trailing slash kept)', () => {
+    const nm = loadAllowlist().paths.filter((p) => p.includes('node_modules'));
+    expect(nm).toEqual(['packages/engine/core/node_modules/', 'packages/engine/ledger/node_modules/', 'packages/engine/macro/node_modules/']);
+    const r = scanStreamKeys(fixture({ 'packages/engine/macro/streams.ts': STREAMS, 'packages/engine/content/node_modules/x/a.js': lit,
+      'packages/engine/macro/sub/node_modules/b.ts': lit, 'packages/engine/core/node_modules_evil/c.ts': lit, 'packages/engine/ledger/node_modules/d.js': lit }));
+    expect(r.callSiteKeys.map((c) => c.file)).toEqual(['packages/engine/content/node_modules/x/a.js', 'packages/engine/core/node_modules_evil/c.ts', 'packages/engine/macro/sub/node_modules/b.ts']);
+  });
   it('(d) the printed allowlist matches the allowlist file, and the CLI prints it on every run', () => {
     const raw = JSON.parse(readFileSync(ALLOWLIST_FILE, 'utf8')) as Record<string, string[]>, a = loadAllowlist();
     expect(a).toEqual({ roots: raw.roots, extensions: raw.extensions, paths: raw.paths, testFileSuffixes: raw.testFileSuffixes });
@@ -189,4 +196,56 @@ describe('ci:streams CLI exit code (subprocess)', () => {
     const ok = cli(fixture({ 'packages/engine/macro/ok.ts': 'export const ok = 1;' }));
     expect(ok.status).toBe(0); expect(ok.stderr).toContain('scan root: src/');
   }, 120000);
+});
+
+describe('AC-02-06-REGISTRY-SCOPE (E-69): every reported path is POSIX, on EVERY platform', () => {
+  // The scanner used to normalise the separator in walk() but NOT where findings are reported, so on
+  // Windows the reported paths came back as `packages\engine\...` while the exclusion allowlist and
+  // every expectation are POSIX: 17 of these 22 tests were red on every Windows checkout, and green
+  // only because CI is Linux.
+  //
+  // toPosix is the ONE normalisation, and it splits on BOTH separators rather than on `sep` alone.
+  // That is what makes THIS test meaningful on Linux: a split on `sep` would leave a backslash
+  // untouched there, so a regression of this class would be invisible in CI. These assertions
+  // therefore fail on EVERY platform if the normalisation is narrowed back to `sep`.
+  it('toPosix normalises BOTH separators, so the result is platform-independent', () => {
+    expect(toPosix('packages\\engine\\markets\\p.ts')).toBe('packages/engine/markets/p.ts');
+    expect(toPosix('packages/engine/markets/p.ts')).toBe('packages/engine/markets/p.ts');
+    expect(toPosix('a\\b/c')).toBe('a/b/c');
+    expect(toPosix('a/b\\c')).toBe('a/b/c');
+  });
+  it('toPosix normalises the SEPARATOR ONLY: the file name is untouched', () => {
+    // The rule is about the path, not about the name: a file whose NAME contains a backslash-ish
+    // character is not rewritten, and the name itself never changes.
+    expect(toPosix('packages/engine/my file.ts')).toBe('packages/engine/my file.ts');
+    expect(toPosix('packages\\engine\\streams.ts')).toBe('packages/engine/streams.ts');
+  });
+  it('the reported paths of a finding are POSIX, whatever the platform separator is', () => {
+    const lit = "export function f(ctx: any) { return ctx.rng('macro.fx:EUN:FDL'); }";
+    const r = scanStreamKeys(fixture({ 'packages/engine/macro/use.ts': lit }));
+    expect(r.callSiteKeys.map((c) => c.file)).toEqual(['packages/engine/macro/use.ts']);
+    expect(r.callSiteKeys.every((c) => !c.file.includes('\\'))).toBe(true);
+  });
+  it('a registered helper in a streams.ts is FOUND, so its own template is not reported as a call-site key', () => {
+    // This is the second half of the defect: the helper collection was gated on a hard-coded POSIX
+    // suffix (`f.endsWith('/streams.ts')`), which is false on Windows. With no helpers collected the
+    // `bodies` set was empty, so every registered helper's OWN template was reported as a call-site
+    // key - 11 spurious findings instead of 5.
+    const STREAMS = "export const S = Object.freeze({ fx: (base: string, quote: string): string => `macro.fx:${base}:${quote}` });";
+    const r = scanStreamKeys(fixture({
+      'packages/engine/macro/streams.ts': STREAMS,
+      'packages/engine/macro/use.ts': "import { S } from './streams';\nexport function f(ctx: any) { return ctx.rng(S.fx('EUN', 'FDL')).normal(); }",
+    }));
+    expect(r.callSiteKeys).toEqual([]);
+    expect(r.unknown).toEqual([]);
+    expect(r.unregisteredHelpers).toEqual([]);
+  });
+  it('the helper collection is not gated on the platform separator: a streams.ts is found and its template is suppressed', () => {
+    // The helper bodies are keyed by `<rel>@<offset>`; if the reported rel and the lookup rel ever
+    // disagree on the separator, the body's own template comes back as a finding.
+    const STREAMS = "export const S = Object.freeze({ fx: (b: string): string => `macro.fx:${b}:FDL` });";
+    const r = scanStreamKeys(fixture({ 'packages/engine/macro/streams.ts': STREAMS }));
+    expect(r.callSiteKeys).toEqual([]);
+    expect(r.unregisteredHelpers.map((h) => h.helper)).toEqual([]);
+  });
 });

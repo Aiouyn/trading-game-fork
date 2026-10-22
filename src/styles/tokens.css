@@ -34,6 +34,13 @@
   --z-sheet: 130; --z-moment: 140; --z-held: 150; --z-system: 160;
   --chrome-translucent: color-mix(in srgb, var(--chrome) 94%, transparent);
   --btn-primary-style: solid;
+  /* 17A T3: the market-phase cross-fade starts here, not at 0. The phase label is --fg-muted on the
+     strip, and a label at partial opacity blends into the strip and drops under the 4.5:1 text
+     floor, so a fade from 0 exposed it to a serious axe color-contrast violation for the first
+     ~50 ms of every cross-fade. 0.93 is the lowest value that clears 4.5:1 in the worst palette
+     (broadsheet needs >= 0.921; ink-brass >= 0.747, phosphor >= 0.715, riviera >= 0.673) — measured
+     with tools/lint/contrast.mjs's own lum/ratio. The fade still animates; it never dips below. */
+  --mp-fade-start: 0.93;
   /* 17A T1: focus ring (17 §3.16), hit targets (17 §3.3.3), tiles (17 §3.2.1, §3.2.3), chrome heights */
   --focus-ring: 0 0 0 2px var(--bg0), 0 0 0 4px var(--acc);
   --hit-touch: 44px; --hit-pointer: 28px;
