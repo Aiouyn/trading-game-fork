@@ -2,9 +2,32 @@
 // A test that survives a mutation of the thing it guards is not a test. Each mutant below is a one-line change to
 // the implementation the new tests are supposed to guard; the file is restored byte-for-byte after each run.
 //
-// Usage: node scripts/mutants-t03-01.mjs   (from packages/engine/ledger)
-import { readFileSync, writeFileSync } from 'node:fs';
+// ── THE KILL PREDICATE ───────────────────────────────────────────────────────────────────────────────────────────
+// A kill is NOT "the process exited non-zero". A kill is "the runner ran the guarding tests, and the runner's OWN
+// summary reports failing tests". Five outcomes are distinguished, and only one of them is a kill:
+//
+//   KILLED        the runner ran the guarding tests and its summary reports "Tests N failed"
+//   SURVIVED      the runner ran the guarding tests and they passed (the mutant is not guarded)
+//   NO_TESTS_RAN  the runner collected no test at all ("Tests no tests"): the mutant broke the MODULE, not the TEST
+//   FILE_FAILED   a test FILE failed but no test reported a failure: the mutant broke the FILE, not the TEST
+//   RUNNER_ERROR  the runner started but produced no usable summary (a broken config, a crash before collection)
+//   SPAWN_ERROR   the runner never started at all (no entry point, the spawn failed, the process was killed)
+//
+// Two bugs made the previous version of this file report a perfect score while measuring nothing:
+//   1. the runner was spawned as `node_modules/.bin/vitest` with `shell: true`. On Windows that is a POSIX `sh` shim
+//      which cmd.exe cannot execute, so the spawn exited non-zero and NO TEST EVER RAN;
+//   2. the kill test was `/Tests\s+\d+ failed/.test(out) || /\d+ failed/.test(out) || r.status !== 0`, so the
+//      non-zero exit of a runner that never started was enough to call every mutant KILLED.
+// A detector that never fires is worse than no detector, because it reads as a guard. So the summary is stripped of
+// ANSI before it is matched at all (vitest puts the colour codes BETWEEN the word "Tests" and the word "failed",
+// which is why the raw summary does not match a plain-text pattern), and the self-test below proves the classifier
+// on a known-bad input AND on a known-good one before any mutant is scored.
+//
+// Usage: node scripts/mutants-t03-01.mjs   (the paths are resolved from this file, so the cwd does not matter)
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 const MUTANTS = [
   // ── the chart of accounts (03 §3.2) ──
@@ -81,26 +104,212 @@ const MUTANTS = [
     to: "[1010, 'Deposits at bank', 'bnkId (term deposits: bnkId:termId)', 'ALL', 'NO', '']", tests: 'test/chart.test.ts' },
 ];
 
-const VITEST = 'node_modules/.bin/vitest';
-let killed = 0;
-let survived = 0;
+// ── the harness itself ───────────────────────────────────────────────────────────────────────────────────────────
+// The package root (packages/engine/ledger), resolved by walking up from this file until a package.json is found.
+// Resolving it from the file's own location means a copy of this script (the negative control writes one) still
+// finds the real package root, instead of computing a root relative to wherever the copy happens to live.
+const PKG = (() => {
+  let dir = fileURLToPath(new URL('.', import.meta.url));
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+    const parent = join(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return fileURLToPath(new URL('..', import.meta.url));   // the fallback: one level up, as the script is in scripts/
+})();
+/** The vitest entry point: never a `.bin` shim, which is an `sh` script on Windows and cannot be executed by cmd.exe. */
+const VITEST_ENTRY = [
+  join(PKG, 'node_modules', 'vitest', 'vitest.mjs'),
+  join(PKG, '..', '..', '..', 'node_modules', 'vitest', 'vitest.mjs'),   // the repo-root install
+].find((p) => existsSync(p));
 
-console.log('=== T03-01 mutants: each must be KILLED by the test that guards it ===');
-for (const m of MUTANTS) {
-  const original = readFileSync(m.file, 'utf8');
+/**
+ * The self-test fixtures live in a cache dir under node_modules: it is git-ignored and eslint-ignored, so a
+ * deliberately broken fixture (a syntax error, a broken config) can never reach the repo's lint, typecheck or tests.
+ */
+const FIXTURES = join(PKG, 'node_modules', '.cache', 't03-01-mutant-fixtures');
+
+/**
+ * vitest colourises its summary, and the ANSI codes sit BETWEEN the word "Tests" and the word "failed".
+ * A plain-text pattern therefore matches the stripped summary and NOT the raw one, so the summary is stripped
+ * before it is matched at all.
+ */
+const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
+
+/**
+ * Run vitest and classify the run. This verdict is the ONLY thing that decides a kill.
+ * @param {string[]} args the vitest arguments
+ * @param {{runnerEntry?: string, command?: string, cwd?: string}} opts
+ * @returns {{verdict: string, ranAtAll: boolean, detail: string}}
+ */
+function runVitest(args, { runnerEntry = VITEST_ENTRY, command = process.execPath, cwd = PKG } = {}) {
+  // A runner that is not there is a spawn that cannot start: nothing was spawned, so nothing can have been killed.
+  if (runnerEntry === undefined || !existsSync(runnerEntry)) {
+    return { verdict: 'SPAWN_ERROR', ranAtAll: false, detail: `there is no runner at ${runnerEntry ?? '(vitest is not installed)'}` };
+  }
+  const r = spawnSync(command, [runnerEntry, ...args], { encoding: 'utf8', cwd });
+  if (r.error !== undefined) return { verdict: 'SPAWN_ERROR', ranAtAll: false, detail: `the spawn failed: ${r.error.message}` };
+  if (r.status === null) return { verdict: 'SPAWN_ERROR', ranAtAll: false, detail: 'the runner was killed before it could report' };
+  const out = stripAnsi(`${r.stdout ?? ''}${r.stderr ?? ''}`);
+  const ranAtAll = /RUN\s+v\d/.test(out);             // the runner really started
+  const noTests = /Tests\s+no tests/.test(out);       // the runner collected no test at all
+  const testsFailed = /Tests\s+\d+\s+failed/.test(out);
+  const filesFailed = /Test Files\s+\d+\s+failed/.test(out);
+  if (!ranAtAll) return { verdict: 'RUNNER_ERROR', ranAtAll: false, detail: 'the runner never printed its banner: it did not start' };
+  // "no tests" is checked BEFORE "failed": a mutant that breaks the module's import prints "Test Files 1 failed"
+  // AND "Tests no tests", and that is a broken FILE, not a failing test.
+  if (noTests) return { verdict: 'NO_TESTS_RAN', ranAtAll: true, detail: 'the runner collected no test: the module did not load' };
+  if (testsFailed) {
+    if (r.status !== 0) return { verdict: 'KILLED', ranAtAll: true, detail: '' };
+    return { verdict: 'RUNNER_ERROR', ranAtAll: true, detail: 'the runner reported failing tests but exited 0' };
+  }
+  if (filesFailed) return { verdict: 'FILE_FAILED', ranAtAll: true, detail: 'a test file failed but no test reported a failure: the file did not load' };
+  if (r.status === 0) return { verdict: 'SURVIVED', ranAtAll: true, detail: '' };
+  return { verdict: 'RUNNER_ERROR', ranAtAll: true, detail: `the runner exited ${r.status} without reporting a failing test` };
+}
+
+/**
+ * Apply a mutation, run `body`, and restore the file byte-for-byte (the restore is checked, not assumed).
+ * Returns `{ setup }` when the mutation does not apply (the pattern is missing or not unique).
+ */
+function withMutation(m, body) {
+  const path = join(PKG, m.file);
+  const originalBytes = readFileSync(path);
+  const original = originalBytes.toString('utf8');
   const at = original.indexOf(m.from);
-  if (at < 0) { console.log(`SETUP FAILED (pattern not found): ${m.name}`); survived++; continue; }
-  if (original.indexOf(m.from, at + 1) >= 0) { console.log(`SETUP FAILED (pattern not unique): ${m.name}`); survived++; continue; }
-  writeFileSync(m.file, original.slice(0, at) + m.to + original.slice(at + m.from.length));
-  const r = spawnSync(VITEST, ['run', m.tests], { encoding: 'utf8', shell: true });
-  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  const failed = /Tests\s+\d+ failed/.test(out) || /\d+ failed/.test(out) || r.status !== 0;
-  writeFileSync(m.file, original);
-  if (failed) { console.log(`KILLED    ${m.name}`); killed++; }
-  else {
-    console.log(`SURVIVED  ${m.name}   <-- the test does not guard this`);
-    survived++;
+  if (at < 0) return { setup: `SETUP FAILED (pattern not found): ${m.name}` };
+  if (original.indexOf(m.from, at + 1) >= 0) return { setup: `SETUP FAILED (pattern not unique): ${m.name}` };
+  writeFileSync(path, original.slice(0, at) + m.to + original.slice(at + m.from.length));
+  try {
+    return { result: body() };
+  } finally {
+    writeFileSync(path, originalBytes);
+    if (!readFileSync(path).equals(originalBytes)) throw new Error(`the file was not restored byte-for-byte: ${m.file}`);
   }
 }
-console.log(`\n=== mutants killed: ${killed}   mutants survived: ${survived} ===`);
-process.exit(survived === 0 ? 0 : 1);
+
+// ── the self-test fixtures ─────────────────────────────────────────────────────────────────────────────────────
+// Each fixture is a REAL file that makes the runner fail in one specific way, so the classifier is proven on a
+// known-bad input AND on a known-good one. They are written into a git-ignored cache dir and removed afterwards, so
+// a deliberately broken source can never reach the repo's lint, typecheck or test run.
+const FIXTURE_SOURCES = {
+  'vitest.config.ts': "import { defineConfig } from 'vitest/config';\nexport default defineConfig({ test: { include: ['*.test.ts'], environment: 'node' } });\n",
+  // an assertion that genuinely fails -> the runner's summary says "Tests 1 failed"
+  'fail.test.ts': "import { describe, expect, it } from 'vitest';\ndescribe('self-test', () => { it('fails on purpose', () => { expect(1).toBe(2); }); });\n",
+  // an import error -> the file never loads, so the runner says "Tests no tests"
+  'import-error.test.ts': "import { describe, expect, it } from 'vitest';\nimport { missing } from './this-module-does-not-exist';\ndescribe('self-test', () => { it('never runs', () => { expect(missing).toBeDefined(); }); });\n",
+  // a syntax error -> the file never parses, so the runner says "Tests no tests"
+  'syntax-error.test.ts': "import { describe, expect, it } from 'vitest';\ndescribe('self-test', () => { it('never parses', () => { const x = ; }); });\n",
+  // a config that cannot be loaded -> the runner never starts
+  'broken.config.ts': "import { defineConfig } from 'vitest/config';\nthis is not valid javascript ((((\n",
+  // a passing file, so a broken file can be run ALONGSIDE a passing one
+  'pass.test.ts': "import { describe, expect, it } from 'vitest';\ndescribe('self-test', () => { it('passes', () => { expect(1).toBe(1); }); });\n",
+};
+function writeFixtures() {
+  rmSync(FIXTURES, { recursive: true, force: true });
+  mkdirSync(FIXTURES, { recursive: true });
+  for (const [name, body] of Object.entries(FIXTURE_SOURCES)) writeFileSync(join(FIXTURES, name), body);
+}
+function removeFixtures() { rmSync(FIXTURES, { recursive: true, force: true }); }
+
+// ── the self-test: the harness must classify each of these cases correctly ───────────────────────────────────────
+// Every row is a REAL run, not a recorded output. The table prints what the harness actually measured, so a
+// misclassification is visible in the log rather than hidden behind a claim. A detector that never fires is worse
+// than no detector, because it reads as a guard: each condition here is proven to fire on a known-bad input AND to
+// stay quiet on a known-good one.
+const M10 = MUTANTS.find((m) => m.name.startsWith('M10'));
+if (M10 === undefined) { console.log('SETUP FAILED: M10 is not in the mutant list'); process.exit(1); }
+const COMMENT_ONLY = {
+  name: 'a comment-only change',
+  file: 'src/accounts.ts',
+  from: '// 03 §3.2 chart of accounts, the account-key codec and the authored system entity ids (T03-01).',
+  to: '// 03 §3.2 chart of accounts, the account-key codec and the authored system entity ids (T03-01). // SELFTEST',
+};
+/** Run one mutation case: mutate, run the guarding test, restore. */
+const runMutationCase = (m, tests) => {
+  const run = withMutation(m, () => runVitest(['run', tests]));
+  if (run.setup !== undefined) return { verdict: 'SETUP_FAILED', ranAtAll: false, detail: run.setup };
+  return run.result;
+};
+
+const SELFTEST_ROWS = [
+  { case: 'the unmutated baseline (the runner really ran)', expected: 'SURVIVED',
+    run: () => runVitest(['run', 'test/accountKey.test.ts']) },
+  { case: 'a comment-only change (uncatchable by construction)', expected: 'SURVIVED',
+    run: () => runMutationCase(COMMENT_ONLY, 'test/accountKey.test.ts') },
+  { case: 'M10: the zero-padding removed, with the new assertion', expected: 'KILLED',
+    run: () => runMutationCase(M10, 'test/accountKey.test.ts') },
+  { case: 'an assertion that genuinely fails', expected: 'KILLED',
+    run: () => runVitest(['run', '--root', FIXTURES, '--config', join(FIXTURES, 'vitest.config.ts'), 'fail.test.ts']) },
+  { case: 'an import error (the module does not load)', expected: 'NO_TESTS_RAN',
+    run: () => runVitest(['run', '--root', FIXTURES, '--config', join(FIXTURES, 'vitest.config.ts'), 'import-error.test.ts']) },
+  { case: 'a syntax error (the file does not parse)', expected: 'NO_TESTS_RAN',
+    run: () => runVitest(['run', '--root', FIXTURES, '--config', join(FIXTURES, 'vitest.config.ts'), 'syntax-error.test.ts']) },
+  { case: 'a broken file alongside a passing one (the false kill)', expected: 'FILE_FAILED',
+    run: () => runVitest(['run', '--root', FIXTURES, '--config', join(FIXTURES, 'vitest.config.ts'), 'import-error.test.ts', 'pass.test.ts']) },
+  { case: 'a broken runner config (the runner never starts)', expected: 'RUNNER_ERROR',
+    run: () => runVitest(['run', '--config', join(FIXTURES, 'broken.config.ts'), 'test/accountKey.test.ts']) },
+  { case: 'a runner path that does not exist (the spawn cannot start)', expected: 'SPAWN_ERROR',
+    run: () => runVitest(['run', 'test/accountKey.test.ts'], { runnerEntry: join(FIXTURES, 'no-such-runner.mjs') }) },
+  { case: 'a command that cannot be spawned at all', expected: 'SPAWN_ERROR',
+    run: () => runVitest(['run', 'test/accountKey.test.ts'], { command: join(FIXTURES, 'no-such-command') }) },
+];
+
+let killed = 0;
+let survived = 0;
+let spawnErrors = 0;
+let runnerErrors = 0;
+let noTestsRan = 0;
+let fileFailed = 0;
+
+console.log('=== T03-01 mutants: each must be KILLED by the test that guards it ===');
+console.log(`--- runner: ${process.execPath} ${VITEST_ENTRY ?? '(not found)'} run <test file>`);
+console.log('--- self-test: the harness must classify each case below correctly (every row is a real run) ---');
+const pad = (s, n) => String(s).padEnd(n);
+console.log(`${pad('case', 58)}${pad('expected', 15)}${pad('measured', 15)}${pad('ranAtAll', 9)}verdict`);
+writeFixtures();
+let selfFailures = 0;
+try {
+  for (const row of SELFTEST_ROWS) {
+    const r = row.run();
+    const ok = r.verdict === row.expected;
+    if (!ok) selfFailures++;
+    console.log(`${pad(row.case, 58)}${pad(row.expected, 15)}${pad(r.verdict, 15)}${pad(String(r.ranAtAll), 9)}${ok ? 'ok' : 'MISMATCH'}${r.detail === '' ? '' : `   (${r.detail})`}`);
+  }
+} finally {
+  removeFixtures();
+}
+console.log(`--- self-test: ${SELFTEST_ROWS.length - selfFailures} of ${SELFTEST_ROWS.length} cases classified as expected ---`);
+if (selfFailures > 0) {
+  console.log('SELFTEST FAILED: the harness misclassifies a known case, so its kill count proves nothing.');
+  // process.exitCode, not process.exit(): an immediate exit can truncate the pending stdout write, which would
+  // hide the very table the failure is about.
+  process.exitCode = 1;
+} else {
+  for (const m of MUTANTS) {
+    const run = withMutation(m, () => runVitest(['run', m.tests]));
+    if (run.setup !== undefined) { console.log(run.setup); survived++; continue; }
+    const { verdict, detail } = run.result;
+    if (verdict === 'KILLED') { console.log(`KILLED    ${m.name}`); killed++; }
+    else if (verdict === 'SURVIVED') {
+      console.log(`SURVIVED  ${m.name}   <-- the test does not guard this`);
+      survived++;
+    } else if (verdict === 'SPAWN_ERROR') {
+      console.log(`SPAWN ERROR  ${m.name}   <-- the runner never started: ${detail}`);
+      spawnErrors++;
+    } else if (verdict === 'NO_TESTS_RAN') {
+      console.log(`NO TESTS RAN  ${m.name}   <-- the mutant broke the module, not the test: ${detail}`);
+      noTestsRan++;
+    } else if (verdict === 'FILE_FAILED') {
+      console.log(`FILE FAILED  ${m.name}   <-- the mutant broke the file, not the test: ${detail}`);
+      fileFailed++;
+    } else {
+      console.log(`RUNNER ERROR  ${m.name}   <-- the runner reported no failing test: ${detail}`);
+      runnerErrors++;
+    }
+  }
+  console.log(`\n=== mutants killed: ${killed}   mutants survived: ${survived}   spawn errors: ${spawnErrors}   no tests ran: ${noTestsRan}   file failed: ${fileFailed}   runner errors: ${runnerErrors} ===`);
+  if (killed !== MUTANTS.length) console.log(`=== NOT every mutant was killed: ${MUTANTS.length - killed} of ${MUTANTS.length} are unaccounted for ===`);
+  if (survived !== 0 || spawnErrors !== 0 || runnerErrors !== 0 || noTestsRan !== 0 || fileFailed !== 0) process.exitCode = 1;
+}

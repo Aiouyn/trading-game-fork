@@ -9,8 +9,15 @@ describe('T03-01 account key (03 §2.2)', () => {
     expect(accountKey('chr_A', 1500, 'FDL')).toBe('chr_A:1500:FDL');
     expect(accountKey('sys_SYSTEM', 9900, 'EUN', 'P1->P2')).toBe('sys_SYSTEM:9900:P1->P2:EUN');
     expect(accountKey('chr_A', 1001, 'FDL')).toBe('chr_A:1001:FDL');
-    // the code is zero-padded to 4 digits, so 1001 and 9900 are 4 digits and a smaller code keeps its width
+    // 1001 and 9900 are already 4 digits, so this line says nothing about the zero-padding;
+    // the padding itself is pinned by the sub-1000 case below (and by the fast-check range).
     expect(accountKey('chr_A', 1001, 'FDL')).toContain(':1001:');
+  });
+
+  it('the code is zero-padded to 4 digits, so a sub-1000 code still round-trips', () => {
+    const key = accountKey('chr_A', 150, 'FDL');
+    expect(key).toBe('chr_A:0150:FDL');
+    expect(parseAccountKey(key)?.code).toBe(150);
   });
 
   it('parses the entity, the code, the sub and the ccy', () => {
@@ -51,7 +58,8 @@ describe('T03-01 account key (03 §2.2)', () => {
   it('round-trips for every random id, code, ccy and sub (fast-check)', () => {
     fc.assert(fc.property(
       fc.constantFrom('chr_A', 'cmp_X', 'bnk_Y', 'sys_SYSTEM', 'hh_C1', 'gov_FDL', 'row_WORLD', 'frm_EUN', 'npc_S'),
-      fc.integer({ min: 1001, max: 9910 }),
+      // the range starts below 1000 so the property covers a code the zero-padding actually changes
+      fc.integer({ min: 1, max: 9910 }),
       fc.constantFrom('FDL' as const, 'EUN' as const, 'PYN' as const, 'NKR' as const, 'SRL' as const),
       fc.option(fc.string({ minLength: 1, maxLength: 12 }).filter((s) => !s.includes(':')), { nil: undefined }),
       (entityId, code, ccy, sub) => {
@@ -69,7 +77,7 @@ describe('T03-01 account key (03 §2.2)', () => {
   it('round-trips for random subs that contain colons (fast-check)', () => {
     fc.assert(fc.property(
       fc.constantFrom('chr_A', 'sys_SYSTEM', 'bnk_Y'),
-      fc.integer({ min: 1001, max: 9910 }),
+      fc.integer({ min: 1, max: 9910 }),
       fc.constantFrom('FDL' as const, 'EUN' as const),
       fc.string({ minLength: 1, maxLength: 16 }).filter((s) => s !== '' && !s.endsWith(':') && !s.startsWith(':')),
       (entityId, code, ccy, sub) => {
