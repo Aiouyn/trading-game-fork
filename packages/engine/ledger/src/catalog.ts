@@ -47,6 +47,15 @@ export const LEDGER_EXTENSION_CODES: readonly CodeRow[] = [
     code, cls: 'TRANSFER', owner: 3, cf: 'OP', allowedTemplates: ['ESCROW_SETTLE'], descriptionKey: `led.code.${code}`, restrictedOk: false, requestableBy: [13], illicit: false })),
 ];
 
+/**
+ * E-81 point 5 / AC-03-ER81-COUNTS: the 03 §3.4-origin subset IS a spec number, so it stays pinned to the spec — the
+ * 384 §3.4 rows less PD-12's two `OPS_*` removals, with E-46's fence counted as a TRANSFER rather than a FAUCET.
+ * The LIVE catalog is never pinned to a literal: its histogram is derived from CATALOG_SEED (E-81 point 5).
+ */
+export const SPEC_COUNTS_03: Readonly<Record<FlowClass, number>> = {
+  FAUCET: 36, SINK: 86, TRANSFER: 208, CREDIT_CREATE: 12, CREDIT_DESTROY: 13, REVALUE: 27,
+};
+
 /** Systems answer (errata E-3): the only codes on CB_CREDIT / CB_CREDIT_UNWIND. They feed TickFlows.cbCredit. */
 export const CBK_CREDIT_CODES: readonly string[] = [
   'CBK_ASSET_PURCHASE', 'CBK_EMERGENCY_LIQUIDITY', 'CBK_FX_INTERVENTION_BUY', 'CBK_OPEN_MARKET_LEND', 'CBK_STANDING_FACILITY',

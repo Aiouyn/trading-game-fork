@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import type { ParamsView } from '@tycoon/params';
@@ -16,6 +16,20 @@ const view = (id: string): ViewHandler => ({ id, schema: z.unknown(), run: () =>
 const mod = (id: string, o: Partial<ModuleDef> = {}): ModuleDef => ({
   id, module: id.slice(0, 2), dependsOn: [...(BUILD_UNITS[id] ?? [])], tables: [], streams: [], phases: {}, intents: [], events: {}, invariants: [], views: [], ...o });
 const err = (f: () => unknown): { code: string; message: string } | undefined => { try { f(); } catch (e) { return e as ModuleSetError; } return undefined; };
+
+// The core package root, and a path relative to it that ALWAYS uses POSIX separators. Windows joins
+// with '\', so a raw slice of a joined path yields 'module\ctx.ts' and the expectation below would be
+// platform-dependent. Normalising the separator only changes the SEPARATOR: the file NAME is untouched,
+// so the assertion still requires exactly those five files and no others.
+const coreDir = join(__dirname, '..');
+const relCore = (f: string): string => relative(coreDir, f).split(/[\\/]/).join('/');
+
+// The zod-importer rule, ONCE, at module scope, and the LIVE assertion below calls it.
+// The negative checks call the SAME function, so a weakening of the rule is killed by the
+// negative checks and a weakening of the live assertion is impossible - there is only one rule.
+// (Same shape as PR #10's seam.test.ts.)
+const ZOD_IMPORTERS = ['module/ctx.ts', 'module/define.ts', 'module/registry.test.ts', 'module/registry.ts', 'module/views.ts'] as const;
+const assertZodImporters = (files: readonly string[]): void => { expect(files).toEqual(ZOD_IMPORTERS); };
 
 describe('T02-11 module registry', () => {
   it('valid set: 05 without 04/14A/13A -> MOD_MISSING_DEP naming 04; adding them builds, sorted by (module number, unit id)', () => {
@@ -100,7 +114,6 @@ describe('T02-11 type-level contract (expectTypeOf)', () => {
 });
 
 describe('AC-02-11-PARAMS-PKG / E-70 (3)', () => {
-  const coreDir = join(__dirname, '..');
   const files = (d: string, out: string[] = []): string[] => { for (const n of readdirSync(d)) { if (n === 'node_modules') continue; const p = join(d, n); if (statSync(p).isDirectory()) files(p, out); else if (n.endsWith('.ts')) out.push(p); } return out; };
   it('no ParamsView is declared in core; core re-exports the @tycoon/params type', () => {
     const decl = files(coreDir).filter((f) => /(interface\s+ParamsView\b|type\s+ParamsView\s*(<[^>]*>)?\s*=|class\s+ParamsView\b)/.test(readFileSync(f, 'utf8')));
@@ -108,7 +121,36 @@ describe('AC-02-11-PARAMS-PKG / E-70 (3)', () => {
     expect(readFileSync(join(coreDir, 'params.ts'), 'utf8')).toContain("export type { ParamsView } from '@tycoon/params';");
   });
   it('zod is imported in core only by the handler-schema files (module/ctx.ts, module/views.ts, module/define.ts, module/registry.ts) and their test', () => {
-    const users = files(coreDir).filter((f) => /from\s+['"]zod['"]/.test(readFileSync(f, 'utf8'))).map((f) => f.slice(coreDir.length + 1)).sort();
-    expect(users).toEqual(['module/ctx.ts', 'module/define.ts', 'module/registry.test.ts', 'module/registry.ts', 'module/views.ts']);
+    const users = files(coreDir).filter((f) => /from\s+['"]zod['"]/.test(readFileSync(f, 'utf8'))).map(relCore).sort();
+    assertZodImporters(users);
+  });
+});
+
+describe('AC-02-11-PARAMS-PKG / E-70 (3) negative checks', () => {
+  it('the zod-importer rule requires EXACTLY those five files: a widened set FAILS', () => {
+    // One file too many is a failure; one file too few is a failure; a different single file is a
+    // failure. The rule is "exactly these five", not "at most these five".
+    expect(() => assertZodImporters([...ZOD_IMPORTERS])).not.toThrow();
+    expect(() => assertZodImporters([...ZOD_IMPORTERS, 'module/extra.ts'])).toThrow();
+    expect(() => assertZodImporters([...ZOD_IMPORTERS, 'params.ts'])).toThrow();
+    expect(() => assertZodImporters([...ZOD_IMPORTERS].slice(0, 4))).toThrow();
+    expect(() => assertZodImporters([])).toThrow();
+    expect(() => assertZodImporters([...ZOD_IMPORTERS].filter((f) => f !== 'module/ctx.ts'))).toThrow();
+  });
+
+  it('relCore normalises separators only: it does not widen or narrow the file set', () => {
+    // The Windows join produces a backslash; relCore turns it into the POSIX form the assertion
+    // expects. The NAME is unchanged, so the assertion still requires exactly those five files.
+    expect(relCore(join(coreDir, 'module', 'ctx.ts'))).toBe('module/ctx.ts');
+    expect(relCore(join(coreDir, 'module', 'registry.test.ts'))).toBe('module/registry.test.ts');
+    expect(relCore(join(coreDir, 'params.ts'))).toBe('params.ts');
+    // A Windows-style and a POSIX-style path to the same file normalise to the SAME string.
+    expect(relCore('C:\\a\\b\\ctx.ts')).toBe(relCore('C:/a/b/ctx.ts'));
+    // The NAME is preserved verbatim: a mixed-case file name is not lower-cased.
+    expect(relCore(join(coreDir, 'module', 'Views.ts'))).toBe('module/Views.ts');
+    // A path OUTSIDE coreDir keeps its '..' prefix: it is never silently turned into a
+    // plausible in-tree relative path (which would let an out-of-tree file satisfy the rule).
+    expect(relCore(join(coreDir, '..', 'x.ts'))).toBe('../x.ts');
+    expect(relCore(join(coreDir, '..', '..', 'x.ts'))).toBe('../../x.ts');
   });
 });

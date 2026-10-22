@@ -31,3 +31,11 @@ jobs:
           node-version: 22
       - name: typecheck, lint, test (skipped when the package is absent)
         run: node scripts/engine-check.mjs ${{ matrix.pkg }}
+      # E-81 AC-03-ER81-CANONICAL, enforced by CI (QA F-2: nothing ran the generator, so "regeneration is a
+      # no-op" and the repo-relative header were kept true by hand only). A stale src/*-data.ts or a
+      # machine-specific header path turns this step red.
+      - name: generated catalog is a no-op (E-81)
+        if: matrix.pkg == 'ledger'
+        run: |
+          node packages/engine/ledger/scripts/gen-catalog.mjs
+          git diff --exit-code -- packages/engine/ledger/src/catalog-data.ts packages/engine/ledger/src/legpolicy-data.ts packages/engine/ledger/src/cppolicy-data.ts packages/engine/ledger/data/cppolicy.csv
