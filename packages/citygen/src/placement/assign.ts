@@ -232,6 +232,17 @@ function exceedsCap(
  * district's assigned non-RES parcels, in per-mille, floored. The deficit is
  * `target - current`, floored at 0.
  *
+ * THE UNIT IS A SHARE, NOT A COUNT (Producer ruling, 2026-10-22, on Studio's T10A-12 review).
+ * The mix is a RELATIVE PRIORITY between the sectors of a row: "the ratio is what the eye reads;
+ * the count is what the land does". So this term is a per-mille shortfall against the row's own
+ * target, and it is BOUNDED BY THAT TARGET - it is at most 1000 and it is never a facility count.
+ * A cell of 80 does not mean "eight of something": it means "this sector's share of this
+ * district's non-RES stock should be 80 per-mille higher than it is", and how many facilities
+ * that takes is the LAND's answer, not the mix's.
+ *
+ * The per-mille numbers are compared WITHIN A ROW ONLY, never across rows: this function reads
+ * one role's row and one sector's cell, so it never compares a CBD cell to a PORT cell.
+ *
  * The whole computation is INTEGER: the current share is floored, so the deficit is never
  * negative through rounding and the comparison that drives the argmax stays exact.
  */

@@ -8,6 +8,20 @@
 // The per-mille mix below is a readability target (DECISION D-10A-12-MIX, Quant decision 1):
 // it says what a city block should LOOK like, and it is not calibrated to employment, output,
 // land value or demand.
+//
+// THE MIX IS A RELATIVE PRIORITY, NOT A COUNT (Producer ruling, 2026-10-22). The per-mille
+// numbers are compared WITHIN A ROW ONLY: they say how a district's sectors rank against each
+// other, and the absolute count of facilities is left to the land ("the ratio is what the eye
+// reads; the count is what the land does"). The unit is a SHARE, and the mix-deficit term in
+// `assign.ts` is a per-mille shortfall against the row's own target, bounded by that target - so
+// it can never express a facility count.
+//
+// WHICH FACILITY CARRIES A CELL (Producer ruling, 2026-10-22, on Studio's T10A-12 review). The
+// card's rules table carries ONE "Preferred roles" column per SECTOR, but the data model is per
+// FACILITY (`FacilityRule.preferredRoles`), and a cell without a named carrier means different
+// cities: `CBD x FINANCE = 300` is 30 exchanges (3,000 m2 each) or 30 branches (80 m2 each), and
+// `PORT x LOGISTICS_TRANSPORT = 450` is a parade or an overflow. The rules table below therefore
+// names the carrier per FACILITY, and `mixCarriers()` reads it back per CELL.
 
 import { cmpStr, sortBy } from '@tycoon/engine-core/order';
 import type {
@@ -86,7 +100,9 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'fh_cafe',
     sector: 'FOOD_HOSPITALITY',
     allowedRoles: ['MIXED_CORE', 'CBD', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES'],
-    preferredRoles: ['MIXED_CORE', 'CBD', 'TRANSIT_HUB'],
+    // "+ MIXED_RIVER, PRIME_RES (cafés, restaurants)": the card's allowed column names the
+    // cafés for these two roles, so the café carries their FOOD cells.
+    preferredRoles: ['MIXED_CORE', 'CBD', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES'],
     lotTypes: ['SHOPFRONT'],
     footprintM2: [40, 250],
     nuisance: 'N0',
@@ -101,7 +117,12 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'fh_restaurant',
     sector: 'FOOD_HOSPITALITY',
     allowedRoles: ['MIXED_CORE', 'CBD', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES', 'TROPHY_RES'],
-    preferredRoles: ['MIXED_CORE', 'CBD', 'TRANSIT_HUB'],
+    // "+ MIXED_RIVER, PRIME_RES (cafes, restaurants)": the card's allowed column names the
+    // cafes and the restaurants for these two roles, so they carry those FOOD cells.
+    // "nothing in TROPHY_RES except one fh_restaurant per district" is the card's hard-exclusion
+    // column, and it names the carrier too: the restaurant is the only food facility legal on the
+    // hill, so it carries TROPHY_RES's FOOD cell (and the card caps it at one per district).
+    preferredRoles: ['MIXED_CORE', 'CBD', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES', 'TROPHY_RES'],
     lotTypes: ['SHOPFRONT'],
     footprintM2: [120, 600],
     nuisance: 'N0',
@@ -150,7 +171,9 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'rc_shop',
     sector: 'RETAIL_CONSUMER',
     allowedRoles: ['MIXED_CORE', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES'],
-    preferredRoles: ['MIXED_CORE', 'TRANSIT_HUB', 'MIXED_RIVER'],
+    // "+ PRIME_RES (shops)": the card names the SHOPS for PRIME_RES, so the shop carries the
+    // RETAIL cell there.
+    preferredRoles: ['MIXED_CORE', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES'],
     lotTypes: ['SHOPFRONT'],
     footprintM2: [30, 400],
     nuisance: 'N0',
@@ -202,7 +225,16 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
       'MIXED_CORE', 'CBD', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES',
       'INDUSTRIAL', 'PORT', 'TROPHY_RES',
     ],
-    preferredRoles: ['MIXED_CORE', 'CBD'],
+    // THE CARRIER (Producer ruling, 2026-10-22, on Studio's T10A-12 review). The card's
+    // preferred column names the OFFICES for MIXED_CORE and CBD, so the office carries those two
+    // cells (see `re_office`). The card does not name a facility for the mixed and residential
+    // roles, and the agency is the one that fits their street-level stock: an estate agent on
+    // the high street, an estate agent on the hill (Studio's reading of TROPHY_RES: "boutiques
+    // and ateliers, estate agents, a private clinic, one restaurant").
+    // The agency is NOT preferred in PORT: the port's real-estate cell is the YARD (see
+    // `re_builders_yard`). CITY DEV'S CALL where the card is silent, pending the Designer's
+    // re-cut: the card will state the carrier per cell.
+    preferredRoles: ['MIXED_RIVER', 'TRANSIT_HUB', 'PRIME_RES', 'TROPHY_RES'],
     lotTypes: ['SHOPFRONT'],
     footprintM2: [40, 200],
     nuisance: 'N0',
@@ -219,6 +251,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
       'MIXED_CORE', 'CBD', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES',
       'INDUSTRIAL', 'PORT', 'TROPHY_RES',
     ],
+    // "MIXED_CORE, CBD (offices)": the card names the offices for the commercial core, so the
+    // office carries those two cells.
     preferredRoles: ['MIXED_CORE', 'CBD'],
     lotTypes: ['OFFICE_TOWER', 'MIDRISE'],
     footprintM2: [400, 3000],
@@ -233,7 +267,12 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 're_builders_yard',
     sector: 'REAL_ESTATE_SERVICES',
     allowedRoles: ['INDUSTRIAL', 'PORT'],
-    preferredRoles: ['INDUSTRIAL'],
+    // THE CARRIER (Producer ruling, 2026-10-22, on Studio's T10A-12 review, section 4(d)).
+    // The card's hard-exclusion column says "yards never outside INDUSTRIAL/PORT", so the yard
+    // is legal in the port, and the port's REAL_ESTATE_SERVICES cell (100 per-mille) is carried
+    // by the YARD: a dock with 100 per-mille of OFFICES AND AGENCIES reads as a dock with a
+    // mini-CBD. The cell's NUMBER does not change; the FACILITY that carries it does.
+    preferredRoles: ['INDUSTRIAL', 'PORT'],
     lotTypes: ['WAREHOUSE'],
     footprintM2: [2000, 10000],
     nuisance: 'N2',
@@ -290,7 +329,9 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'log_depot',
     sector: 'LOGISTICS_TRANSPORT',
     allowedRoles: ['PORT', 'INDUSTRIAL', 'TRANSIT_HUB', 'MIXED_RIVER'],
-    preferredRoles: ['PORT', 'INDUSTRIAL'],
+    // "+ TRANSIT_HUB, MIXED_RIVER (depot, courier)": the card names the depot and the courier
+    // for these two roles, so the depot carries their LOGISTICS cells.
+    preferredRoles: ['PORT', 'INDUSTRIAL', 'TRANSIT_HUB', 'MIXED_RIVER'],
     lotTypes: ['WAREHOUSE'],
     footprintM2: [800, 4000],
     nuisance: 'N1',
@@ -379,7 +420,12 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     allowedRoles: [
       'CBD', 'PORT', 'INDUSTRIAL', 'MIXED_CORE', 'MIXED_RIVER', 'TRANSIT_HUB', 'PRIME_RES',
     ],
-    preferredRoles: ['INDUSTRIAL', 'TRANSIT_HUB'],
+    // "substation: any role but TROPHY_RES" is the card's allowed column, and the substation
+    // carries the ENERGY cell of every role the card names no plant or tank for. INDUSTRIAL's
+    // cell is the PLANT's ("INDUSTRIAL (plants)"), so the substation is not that cell's carrier;
+    // there it is the support facility the data centre's "within 800 m of an en_substation" rule
+    // needs.
+    preferredRoles: ['MIXED_CORE', 'MIXED_RIVER', 'TRANSIT_HUB', 'PRIME_RES'],
     lotTypes: ['UTILITY_SITE'],
     footprintM2: [400, 2500],
     nuisance: 'N1',
@@ -432,7 +478,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'ma_grain_silo',
     sector: 'MINING_AGRICULTURE',
     allowedRoles: ['PORT', 'INDUSTRIAL'],
-    preferredRoles: ['PORT'],
+    // "INDUSTRIAL (silo)": the card names the silo for the basin, so it carries that cell too.
+    preferredRoles: ['PORT', 'INDUSTRIAL'],
     lotTypes: ['PLANT'],
     footprintM2: [3000, 15000],
     nuisance: 'N2',
@@ -451,7 +498,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'mf_light',
     sector: 'MANUFACTURING',
     allowedRoles: ['INDUSTRIAL', 'MIXED_RIVER'],
-    preferredRoles: ['INDUSTRIAL'],
+    // "MIXED_RIVER (light only)": the card names the light plant for the lofts.
+    preferredRoles: ['INDUSTRIAL', 'MIXED_RIVER'],
     lotTypes: ['WAREHOUSE', 'ROW'],
     footprintM2: [600, 5000],
     nuisance: 'N1',
@@ -483,7 +531,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'mf_heavy',
     sector: 'MANUFACTURING',
     allowedRoles: ['INDUSTRIAL', 'PORT'],
-    preferredRoles: ['INDUSTRIAL'],
+    // "PORT (heavy)": the card names the heavy plant for the dock, so it carries that cell.
+    preferredRoles: ['INDUSTRIAL', 'PORT'],
     lotTypes: ['PLANT'],
     footprintM2: [20000, 100000],
     nuisance: 'N3',
@@ -524,7 +573,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'tech_office',
     sector: 'TECH_AI',
     allowedRoles: ['PRIME_RES', 'MIXED_RIVER', 'CBD', 'TRANSIT_HUB'],
-    preferredRoles: ['PRIME_RES', 'MIXED_RIVER', 'CBD'],
+    // "TRANSIT_HUB (offices)": the card names the office for the station quarter.
+    preferredRoles: ['PRIME_RES', 'MIXED_RIVER', 'CBD', 'TRANSIT_HUB'],
     lotTypes: ['OFFICE_TOWER', 'MIDRISE'],
     footprintM2: [500, 6000],
     nuisance: 'N0',
@@ -609,7 +659,9 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'fin_branch',
     sector: 'FINANCE',
     allowedRoles: ['MIXED_CORE', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES'],
-    preferredRoles: ['MIXED_CORE', 'TRANSIT_HUB'],
+    // "branches: MIXED_CORE, TRANSIT_HUB, MIXED_RIVER, PRIME_RES": the card names the branch
+    // for these four roles, so the branch carries their FINANCE cells.
+    preferredRoles: ['MIXED_CORE', 'TRANSIT_HUB', 'MIXED_RIVER', 'PRIME_RES'],
     lotTypes: ['SHOPFRONT'],
     footprintM2: [80, 400],
     nuisance: 'N0',
@@ -642,7 +694,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'me_studio',
     sector: 'MEDIA_ENTERTAINMENT',
     allowedRoles: ['MIXED_RIVER', 'INDUSTRIAL'],
-    preferredRoles: ['MIXED_RIVER'],
+    // "INDUSTRIAL (studios)": the card names the studio for the basin.
+    preferredRoles: ['MIXED_RIVER', 'INDUSTRIAL'],
     lotTypes: ['WAREHOUSE'],
     footprintM2: [2000, 15000],
     nuisance: 'N0',
@@ -658,7 +711,8 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'me_venue',
     sector: 'MEDIA_ENTERTAINMENT',
     allowedRoles: ['TRANSIT_HUB', 'MIXED_CORE'],
-    preferredRoles: ['TRANSIT_HUB'],
+    // "MIXED_CORE (venues)": the card names the venue for the old town.
+    preferredRoles: ['TRANSIT_HUB', 'MIXED_CORE'],
     lotTypes: ['MIDRISE', 'CAMPUS'],
     footprintM2: [2000, 20000],
     nuisance: 'N1',
@@ -699,7 +753,10 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     allowedRoles: [
       'CBD', 'MIXED_CORE', 'MIXED_RIVER', 'TRANSIT_HUB', 'PRIME_RES', 'TROPHY_RES',
     ],
-    preferredRoles: ['MIXED_CORE', 'TRANSIT_HUB'],
+    // "clinics: any role but PORT, INDUSTRIAL": the clinic carries the HEALTH cell of every role
+    // the card names no hospital or lab for. PRIME_RES's cell is the LAB's ("PRIME_RES (lab,
+    // near tech)"), so the clinic is not that cell's carrier.
+    preferredRoles: ['CBD', 'MIXED_CORE', 'MIXED_RIVER', 'TRANSIT_HUB', 'TROPHY_RES'],
     lotTypes: ['SHOPFRONT', 'ROW'],
     footprintM2: [150, 1500],
     nuisance: 'N0',
@@ -729,7 +786,9 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'lx_boutique',
     sector: 'LUXURY',
     allowedRoles: ['CBD', 'PRIME_RES', 'TROPHY_RES', 'MIXED_CORE'],
-    preferredRoles: ['CBD', 'PRIME_RES', 'TROPHY_RES'],
+    // "MIXED_CORE (Old Harbor waterfront)": the card names the boutique for the old town's
+    // waterfront, and the boutique is the one that needs MAIN_AVENUE or WATERFRONT.
+    preferredRoles: ['CBD', 'PRIME_RES', 'TROPHY_RES', 'MIXED_CORE'],
     lotTypes: ['SHOPFRONT'],
     footprintM2: [60, 600],
     nuisance: 'N0',
@@ -797,7 +856,12 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'sl_cyber',
     sector: 'SECURITY_LEGAL_INTEL',
     allowedRoles: ['CBD', 'MIXED_CORE', 'MIXED_RIVER', 'PRIME_RES', 'TRANSIT_HUB'],
-    preferredRoles: ['PRIME_RES'],
+    // "PRIME_RES (cyber)" is the card's named carrier for the prime district. The card names no
+    // facility for MIXED_CORE and MIXED_RIVER: the cyber firm is the sector's mid-rise facility,
+    // and it is the one that can sit on those districts' stock (a law firm is an OFFICE_TOWER and
+    // the old town has none; a guard depot is a yard). CITY DEV'S CALL where the card is silent,
+    // pending the Designer's re-cut: the card will state the carrier per cell.
+    preferredRoles: ['MIXED_CORE', 'MIXED_RIVER', 'PRIME_RES'],
     lotTypes: ['MIDRISE', 'OFFICE_TOWER'],
     footprintM2: [500, 3000],
     nuisance: 'N0',
@@ -811,7 +875,9 @@ export const FACILITY_RULES: readonly FacilityRule[] = [
     facility: 'sl_guard_depot',
     sector: 'SECURITY_LEGAL_INTEL',
     allowedRoles: ['TRANSIT_HUB', 'MIXED_CORE', 'MIXED_RIVER', 'INDUSTRIAL'],
-    preferredRoles: ['TRANSIT_HUB'],
+    // "TRANSIT_HUB (depots)" and "INDUSTRIAL (depots)": the card names the depot for the station
+    // quarter and the basin.
+    preferredRoles: ['TRANSIT_HUB', 'INDUSTRIAL'],
     lotTypes: ['WAREHOUSE', 'ROW'],
     footprintM2: [500, 3000],
     nuisance: 'N1',
@@ -923,8 +989,11 @@ const MIX_ROWS: Readonly<Record<DistrictRole, Readonly<Partial<Record<BizSector,
     LUXURY: 0,
     SECURITY_LEGAL_INTEL: 0,
   },
-  // INDUSTRIAL: the basin. MANUFACTURING 400, LOGISTICS 200, ENERGY 100, TECH_AI 100 (data
+  // INDUSTRIAL: the basin. MANUFACTURING 460, LOGISTICS 200, ENERGY 100, TECH_AI 40 (data
   // centres), REAL_ESTATE 80, RETAIL 60 (the big box), MEDIA 30, SECURITY 10, MINING 20.
+  // TECH_AI 100 -> 40, MANUFACTURING 400 -> 460 (Producer ruling, 2026-10-22, relaying Studio's
+  // T10A-12 review): the only tech facility legal here is `tech_datacenter`, and 100 permille of
+  // the basin's parcels is 19 hyperscale data centres, which does not read as a workshop belt.
   INDUSTRIAL: {
     FOOD_HOSPITALITY: 0,
     RETAIL_CONSUMER: 60,
@@ -932,8 +1001,8 @@ const MIX_ROWS: Readonly<Record<DistrictRole, Readonly<Partial<Record<BizSector,
     LOGISTICS_TRANSPORT: 200,
     ENERGY: 100,
     MINING_AGRICULTURE: 20,
-    MANUFACTURING: 400,
-    TECH_AI: 100,
+    MANUFACTURING: 460,
+    TECH_AI: 40,
     FINANCE: 0,
     MEDIA_ENTERTAINMENT: 30,
     HEALTH: 0,
@@ -1008,12 +1077,20 @@ const MIX_ROWS: Readonly<Record<DistrictRole, Readonly<Partial<Record<BizSector,
     LUXURY: 150,
     SECURITY_LEGAL_INTEL: 100,
   },
-  // TROPHY_RES: the summit. FOOD 80 (the one restaurant per district), REAL_ESTATE 200,
+  // TROPHY_RES: the summit. FOOD 20 (the one restaurant per district), REAL_ESTATE 260,
   // HEALTH 120, LUXURY 600.
+  // THE TWO NUMBER CHANGES (Producer ruling, 2026-10-22, relaying Studio's T10A-12 review):
+  //   - FOOD 80 -> 20, REAL_ESTATE 200 -> 260. The old 80 asked for 2+ restaurants against the
+  //     hard cap of one `fh_restaurant` per district, so the mix-deficit term chased a target it
+  //     could never close, and that deficit distorted every other decision it touched. At 20 the
+  //     cell is satisfiable at every denominator (0 or 1 restaurant against the cap of 1).
+  //   - INDUSTRIAL TECH_AI 100 -> 40, MANUFACTURING 400 -> 460. The only tech facility legal in
+  //     INDUSTRIAL is `tech_datacenter`, and 100 permille of the basin's parcels is 19 hyperscale
+  //     data centres, which does not read as a workshop belt.
   TROPHY_RES: {
-    FOOD_HOSPITALITY: 80,
+    FOOD_HOSPITALITY: 20,
     RETAIL_CONSUMER: 0,
-    REAL_ESTATE_SERVICES: 200,
+    REAL_ESTATE_SERVICES: 260,
     LOGISTICS_TRANSPORT: 0,
     ENERGY: 0,
     MINING_AGRICULTURE: 0,
@@ -1051,6 +1128,80 @@ export const SECTORS_ALLOWED_IN_ROLE = (role: DistrictRole): readonly BizSector[
   SECTORS.filter((s) =>
     FACILITY_RULES.some((r) => r.sector === s && r.allowedRoles.includes(role)),
   );
+
+/**
+ * THE CARRIER OF EVERY CELL (Producer ruling, 2026-10-22, on Studio's T10A-12 review).
+ *
+ * The card's rules table carries ONE "Preferred roles" column per SECTOR, but the data model is
+ * per FACILITY (`FacilityRule.preferredRoles`), and the two are not the same thing. Studio's
+ * measurement of the reference map: the SAME cell `CBD x FINANCE = 300` spans **1.40x to 7.02x**
+ * the district's land depending only on which facility the solver picks (30 exchanges of 3,000 m2
+ * each, or 30 towers, or 30 branches of 80 m2 each), and `PORT x LOGISTICS_TRANSPORT = 450`
+ * spans **0.11x to 129.71x**. Same cell, opposite failures: a parade or an overflow. Until the
+ * card states which facility carries each cell, the same cell means different cities.
+ *
+ * THIS TABLE IS THE RULING, AND IT IS PER CELL. It names, for every non-zero cell of the mix,
+ * the facility that carries it - the one the solver prefers, and the one whose footprint and
+ * character the cell's per-mille is talking about. The `preferredRoles` of the rules table above
+ * is the SOURCE OF TRUTH for it, and `mixCarriers()` reads it back per CELL, so the rules table
+ * is what actually expresses the ruling, per FACILITY, as the Producer asked.
+ *
+ * `MIX_CARRIERS` below is the READOUT of that ruling - the flat list of the 67 non-zero cells and
+ * the facility that carries each. It is derived, so it cannot drift from the rules; the CHECK is
+ * the committed per-cell expectation table in `test/placement/rules.test.ts`, which is where the
+ * Designer's re-cut is confirmed cell by cell and where the mutant that moves a carrier dies.
+ *
+ * Where the card is silent, the carrier is CITY DEV'S CALL and is flagged as such in the rules
+ * table next to the facility that carries it. The card's re-cut will state it.
+ */
+export interface MixCarrier {
+  /** The district role of the cell. */
+  role: DistrictRole;
+  /** The sector of the cell. */
+  sector: BizSector;
+  /**
+   * The facilities that carry the cell, in the rules table's order.
+   *
+   * MORE THAN ONE is legal and means the cell is a CLASS of facility, not one building: the
+   * card's own table carries several classes in a cell's sector ("CBD: FINANCE 300" is the
+   * exchange and the tower, and the count cap of one exchange per city is what stops the cell
+   * from becoming thirty exchanges). The order is the rules table's order, so the first entry is
+   * the most characteristic carrier of the cell.
+   */
+  facilities: readonly string[];
+}
+
+/**
+ * The carrier of every cell, read from the rules table's `preferredRoles`.
+ *
+ * A cell's carriers are the facilities of its sector whose `preferredRoles` contain the cell's
+ * role. The list is sorted by the rules table's own order (facility id, byte order), so it is
+ * canonical and a test can compare it byte for byte.
+ */
+export const mixCarriers = (
+  role: DistrictRole,
+  sector: BizSector,
+): readonly string[] => {
+  if ((DISTRICT_ROLE_MIX[role]?.[sector] ?? 0) === 0) return [];
+  return FACILITY_RULES.filter(
+    (r) => r.sector === sector && r.preferredRoles.includes(role),
+  ).map((r) => r.facility);
+};
+
+/**
+ * The carrier of every non-zero cell, as a flat list in (role, sector) order.
+ *
+ * This is the table the Designer's re-cut has to confirm: 67 cells, each with the facility that
+ * carries it. `AC-10A-12-CARRIER` asserts that every non-zero cell has at least one carrier, and
+ * that the carrier list below matches what the rules table says.
+ */
+export const MIX_CARRIERS: readonly MixCarrier[] = DISTRICT_ROLES.flatMap((role) =>
+  SECTORS.map((sector) => ({
+    role,
+    sector,
+    facilities: mixCarriers(role, sector),
+  })).filter((c) => c.facilities.length > 0),
+);
 
 /** The sum of a mix row. Every row sums to 1000 (AC-10A-12-MIX-SUM). */
 export const mixRowSum = (role: DistrictRole): number => {

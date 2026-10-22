@@ -14,6 +14,7 @@ import {
   BUFFER_M,
   DISTRICT_ROLE_MIX,
   FACILITY_RULES,
+  MIX_CARRIERS,
   PLACEMENT_RULES_VERSION,
   SECTORS_ALLOWED_IN_ROLE,
   STRUCTURE_CAP_M,
@@ -21,12 +22,13 @@ import {
   facilitiesOfSector,
   facilityRule,
   facilityStyleKey,
+  mixCarriers,
   mixRowSum,
   rulesOfSector,
   sectorStyleKey,
 } from '../../src/placement/rules';
 import { DISTRICT_ROLES, NUISANCE_CLASSES, SECTORS } from '../../src/placement/types';
-import type { FacilityRule } from '../../src/placement/types';
+import type { BizSector, DistrictRole, FacilityRule } from '../../src/placement/types';
 
 /** A problem is "AC code: detail". The code names the check that found it. */
 type Problem = string;
@@ -139,6 +141,51 @@ function checkMixSum(
       }
       if (cell === 0 && allowed) {
         out.push(`AC-10A-12-MIX-SUM: ${role} x ${sector} is 0, but a facility may sit in ${role}`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * AC-10A-12-CARRIER: every non-zero cell of the mix has a NAMED CARRIER, and the carrier is a
+ * facility of that cell's sector.
+ *
+ * WHY THIS CHECK EXISTS (Producer ruling, 2026-10-22, on Studio's T10A-12 review). The card's
+ * rules table carries ONE "Preferred roles" column per SECTOR, but the data model is per FACILITY
+ * (`FacilityRule.preferredRoles`), and a cell without a named carrier means different cities:
+ * Studio measured `CBD x FINANCE = 300` spanning 1.40x to 7.02x the district's land and
+ * `PORT x LOGISTICS_TRANSPORT = 450` spanning 0.11x to 129.71x, depending only on which facility
+ * the solver picks. The MIX-SUM biconditional does NOT catch this: it asks whether a sector may
+ * sit in a role, not WHICH facility carries the cell.
+ *
+ * So this check asks the stronger question: for every non-zero cell, is there at least one
+ * facility of that sector whose `preferredRoles` name the role? A cell whose only allowed
+ * facility is NOT preferred there has no carrier, and the solver's preference for it is
+ * indistinguishable from any other allowed facility - which is exactly the defect.
+ */
+function checkCarriers(rules: readonly FacilityRule[]): Problem[] {
+  const out: Problem[] = [];
+  for (const role of DISTRICT_ROLES) {
+    const row = DISTRICT_ROLE_MIX[role];
+    if (!row) continue;
+    for (const sector of SECTORS) {
+      const cell = row[sector] ?? 0;
+      if (cell === 0) continue;
+      const carriers = rules.filter(
+        (r) => r.sector === sector && r.preferredRoles.includes(role),
+      );
+      if (carriers.length === 0) {
+        out.push(
+          `AC-10A-12-CARRIER: ${role} x ${sector} is ${cell}, but no facility of that sector prefers ${role}`,
+        );
+      }
+      for (const c of carriers) {
+        if (!c.allowedRoles.includes(role)) {
+          out.push(
+            `AC-10A-12-CARRIER: ${c.facility} carries ${role} x ${sector} but does not allow ${role}`,
+          );
+        }
       }
     }
   }
@@ -283,6 +330,153 @@ function checkOffmap(rules: readonly FacilityRule[]): Problem[] {
   return out;
 }
 
+/**
+ * THE COMMITTED CARRIER TABLE (Producer ruling, 2026-10-22, on Studio's T10A-12 review).
+ *
+ * One row per non-zero cell of the mix: the role, the sector, the cell's per-mille, and the
+ * facility that CARRIES it - the facility the solver prefers, and the one whose footprint
+ * and character the cell is talking about.
+ *
+ * The card's rules table carries ONE "Preferred roles" column per SECTOR; the data model is
+ * per FACILITY. This table is the per-CELL statement the card's re-cut has to confirm, and
+ * it is committed here so the ruling lives in the repo rather than in a review.
+ *
+ * Studio's measurement of why this matters, on the reference map:
+ *   `CBD x FINANCE = 300` spans 1.40x to 7.02x the district's land depending only on which
+ *   facility the solver picks, and `PORT x LOGISTICS_TRANSPORT = 450` spans 0.11x to 129.71x.
+ *   Same cell, opposite failures: a parade or an overflow.
+ *
+ * THE ROWS MARKED "CITY DEV'S CALL" are the ones the card names NO facility for. They are
+ * flagged in `rules.ts` next to the facility that carries them, and the card's re-cut will
+ * state them. Every other row is the card's own words, read per facility.
+ */
+const CARRIER_TABLE: readonly (readonly [DistrictRole, BizSector, number, readonly string[]])[] = [
+  ['CBD', 'FOOD_HOSPITALITY', 140, ['fh_cafe', 'fh_restaurant', 'fh_hotel', 'fh_food_hall']],
+  ['CBD', 'REAL_ESTATE_SERVICES', 65, ['re_office']],
+  ['CBD', 'ENERGY', 35, ['en_hq']],
+  ['CBD', 'MINING_AGRICULTURE', 25, ['ma_trading_office']],
+  ['CBD', 'TECH_AI', 120, ['tech_office']],
+  ['CBD', 'FINANCE', 300, ['fin_exchange', 'fin_tower']],
+  ['CBD', 'MEDIA_ENTERTAINMENT', 45, ['me_broadcaster']],
+  ['CBD', 'HEALTH', 80, ['hl_clinic']],
+  ['CBD', 'LUXURY', 70, ['lx_boutique', 'lx_flagship']],
+  ['CBD', 'SECURITY_LEGAL_INTEL', 120, ['sl_law_firm']],
+  // THE RULING: the port's real-estate cell is the YARD, not the offices and the agencies.
+  ['PORT', 'REAL_ESTATE_SERVICES', 100, ['re_builders_yard']],
+  ['PORT', 'LOGISTICS_TRANSPORT', 450, ['log_port_terminal', 'log_warehouse', 'log_depot']],
+  ['PORT', 'ENERGY', 150, ['en_tank_farm']],
+  ['PORT', 'MINING_AGRICULTURE', 150, ['ma_bulk_terminal', 'ma_grain_silo']],
+  ['PORT', 'MANUFACTURING', 150, ['mf_heavy']],
+  ['INDUSTRIAL', 'RETAIL_CONSUMER', 60, ['rc_big_box']],
+  ['INDUSTRIAL', 'REAL_ESTATE_SERVICES', 80, ['re_builders_yard']],
+  ['INDUSTRIAL', 'LOGISTICS_TRANSPORT', 200, ['log_warehouse', 'log_depot']],
+  ['INDUSTRIAL', 'ENERGY', 100, ['en_plant']],
+  ['INDUSTRIAL', 'MINING_AGRICULTURE', 20, ['ma_grain_silo']],
+  ['INDUSTRIAL', 'MANUFACTURING', 460, ['mf_light', 'mf_plant', 'mf_heavy', 'mf_chip_fab']],
+  ['INDUSTRIAL', 'TECH_AI', 40, ['tech_datacenter']],
+  ['INDUSTRIAL', 'MEDIA_ENTERTAINMENT', 30, ['me_studio']],
+  ['INDUSTRIAL', 'SECURITY_LEGAL_INTEL', 10, ['sl_guard_depot']],
+  ['MIXED_CORE', 'FOOD_HOSPITALITY', 280, ['fh_cafe', 'fh_restaurant', 'fh_hotel', 'fh_food_hall']],
+  ['MIXED_CORE', 'RETAIL_CONSUMER', 220, ['rc_shop', 'rc_supermarket']],
+  ['MIXED_CORE', 'REAL_ESTATE_SERVICES', 100, ['re_office']],
+  ['MIXED_CORE', 'ENERGY', 20, ['en_substation']],
+  ['MIXED_CORE', 'FINANCE', 50, ['fin_branch']],
+  ['MIXED_CORE', 'MEDIA_ENTERTAINMENT', 90, ['me_venue']],
+  ['MIXED_CORE', 'HEALTH', 70, ['hl_hospital', 'hl_clinic']],
+  ['MIXED_CORE', 'LUXURY', 70, ['lx_boutique']],
+  // CITY DEV'S CALL: the card names no facility for the old town's security cell.
+  ['MIXED_CORE', 'SECURITY_LEGAL_INTEL', 100, ['sl_cyber']],
+  ['MIXED_RIVER', 'FOOD_HOSPITALITY', 220, ['fh_cafe', 'fh_restaurant']],
+  ['MIXED_RIVER', 'RETAIL_CONSUMER', 160, ['rc_shop', 'rc_supermarket']],
+  // CITY DEV'S CALL: the card names no facility for the lofts' real-estate cell.
+  ['MIXED_RIVER', 'REAL_ESTATE_SERVICES', 90, ['re_agency']],
+  ['MIXED_RIVER', 'LOGISTICS_TRANSPORT', 100, ['log_depot', 'log_courier_hub']],
+  ['MIXED_RIVER', 'ENERGY', 30, ['en_substation']],
+  ['MIXED_RIVER', 'MANUFACTURING', 30, ['mf_light']],
+  ['MIXED_RIVER', 'TECH_AI', 90, ['tech_office']],
+  ['MIXED_RIVER', 'FINANCE', 40, ['fin_branch']],
+  ['MIXED_RIVER', 'MEDIA_ENTERTAINMENT', 130, ['me_studio']],
+  ['MIXED_RIVER', 'HEALTH', 50, ['hl_clinic']],
+  // CITY DEV'S CALL: the card names no facility for the lofts' security cell.
+  ['MIXED_RIVER', 'SECURITY_LEGAL_INTEL', 60, ['sl_cyber']],
+  ['TRANSIT_HUB', 'FOOD_HOSPITALITY', 220, ['fh_cafe', 'fh_restaurant', 'fh_hotel', 'fh_food_hall']],
+  ['TRANSIT_HUB', 'RETAIL_CONSUMER', 210, ['rc_shop', 'rc_supermarket']],
+  // CITY DEV'S CALL: the card names no facility for the station quarter's real-estate cell.
+  ['TRANSIT_HUB', 'REAL_ESTATE_SERVICES', 130, ['re_agency']],
+  ['TRANSIT_HUB', 'LOGISTICS_TRANSPORT', 60, ['log_depot', 'log_courier_hub']],
+  ['TRANSIT_HUB', 'ENERGY', 30, ['en_substation']],
+  ['TRANSIT_HUB', 'TECH_AI', 70, ['tech_office']],
+  ['TRANSIT_HUB', 'FINANCE', 80, ['fin_branch']],
+  ['TRANSIT_HUB', 'MEDIA_ENTERTAINMENT', 80, ['me_venue']],
+  ['TRANSIT_HUB', 'HEALTH', 80, ['hl_hospital', 'hl_clinic']],
+  ['TRANSIT_HUB', 'SECURITY_LEGAL_INTEL', 40, ['sl_guard_depot']],
+  ['PRIME_RES', 'FOOD_HOSPITALITY', 60, ['fh_cafe', 'fh_restaurant']],
+  ['PRIME_RES', 'RETAIL_CONSUMER', 50, ['rc_shop']],
+  // CITY DEV'S CALL: the card names no facility for Glasshill's real-estate cell.
+  ['PRIME_RES', 'REAL_ESTATE_SERVICES', 90, ['re_agency']],
+  ['PRIME_RES', 'ENERGY', 20, ['en_substation']],
+  ['PRIME_RES', 'TECH_AI', 250, ['tech_office', 'tech_campus']],
+  ['PRIME_RES', 'FINANCE', 180, ['fin_branch']],
+  ['PRIME_RES', 'HEALTH', 100, ['hl_lab']],
+  ['PRIME_RES', 'LUXURY', 150, ['lx_boutique', 'lx_flagship', 'lx_atelier']],
+  ['PRIME_RES', 'SECURITY_LEGAL_INTEL', 100, ['sl_cyber']],
+  // The cell is 20, not 80: one restaurant against a hard cap of one per district.
+  ['TROPHY_RES', 'FOOD_HOSPITALITY', 20, ['fh_restaurant']],
+  // CITY DEV'S CALL: the card names no facility for the hill's real-estate cell.
+  ['TROPHY_RES', 'REAL_ESTATE_SERVICES', 260, ['re_agency']],
+  ['TROPHY_RES', 'HEALTH', 120, ['hl_clinic']],
+  ['TROPHY_RES', 'LUXURY', 600, ['lx_boutique', 'lx_flagship', 'lx_atelier']],
+];
+
+/**
+ * AC-10A-12-CARRIER: the committed carrier table agrees with the rules table, cell by cell.
+ *
+ * Two directions, because either one alone is weak:
+ *   - every row of the committed table is a NON-ZERO cell of the mix, with the right per-mille,
+ *     and the rules table names exactly the carriers the table says;
+ *   - every NON-ZERO cell of the mix is a row of the committed table, so a cell added to the mix
+ *     without a carrier decision fails here instead of shipping silently.
+ */
+function checkCarrierTable(rules: readonly FacilityRule[]): Problem[] {
+  const out: Problem[] = [];
+  const seen: string[] = [];
+  const carriersOf = (role: DistrictRole, sector: BizSector): string[] => {
+    if ((DISTRICT_ROLE_MIX[role]?.[sector] ?? 0) === 0) return [];
+    return rules
+      .filter((r) => r.sector === sector && r.preferredRoles.includes(role))
+      .map((r) => r.facility);
+  };
+  for (const [role, sector, permille, facilities] of CARRIER_TABLE) {
+    const cell = DISTRICT_ROLE_MIX[role]?.[sector];
+    if (cell === undefined) {
+      out.push(`AC-10A-12-CARRIER: ${role} x ${sector} is not a mix cell`);
+      continue;
+    }
+    if (cell !== permille) {
+      out.push(
+        `AC-10A-12-CARRIER: ${role} x ${sector} is ${cell} in the mix, ${permille} in the carrier table`,
+      );
+    }
+    const actual = carriersOf(role, sector);
+    if (actual.join(',') !== facilities.join(',')) {
+      out.push(
+        `AC-10A-12-CARRIER: ${role} x ${sector} carries [${actual.join(',')}], the table says [${facilities.join(',')}]`,
+      );
+    }
+    seen.push(`${role} x ${sector}`);
+  }
+  // Every non-zero cell is in the table.
+  for (const role of DISTRICT_ROLES) {
+    for (const sector of SECTORS) {
+      if ((DISTRICT_ROLE_MIX[role][sector] ?? 0) === 0) continue;
+      if (!seen.includes(`${role} x ${sector}`)) {
+        out.push(`AC-10A-12-CARRIER: ${role} x ${sector} is not in the carrier table`);
+      }
+    }
+  }
+  return out;
+}
+
 /** AC-10A-12-STYLE-FALLBACK: every placed facility resolves to a defined key or its sector base. */
 function checkStyleFallback(rules: readonly FacilityRule[]): Problem[] {
   const out: Problem[] = [];
@@ -309,6 +503,8 @@ const CHECKS: readonly { code: string; fn: () => Problem[] }[] = [
   { code: 'AC-10A-12-SECTORS', fn: () => checkSectors(FACILITY_RULES) },
   { code: 'AC-10A-12-RULE-SHAPE', fn: () => checkRuleShape(FACILITY_RULES) },
   { code: 'AC-10A-12-MIX-SUM', fn: () => checkMixSum(DISTRICT_ROLE_MIX, FACILITY_RULES) },
+  { code: 'AC-10A-12-CARRIER', fn: () => checkCarriers(FACILITY_RULES) },
+  { code: 'AC-10A-12-CARRIER-TABLE', fn: () => checkCarrierTable(FACILITY_RULES) },
   { code: 'AC-10A-12-TABLE-ROWS', fn: () => checkTableRows(FACILITY_RULES) },
   { code: 'AC-10A-12-STRUCTURES', fn: () => checkStructures(FACILITY_RULES) },
   { code: 'AC-10A-12-FAB', fn: () => checkFab(FACILITY_RULES) },
@@ -334,6 +530,73 @@ describe('T10A-12 rules table', () => {
   it('AC-10A-12-MIX-SUM: every row sums to 1000 and every cell matches the rules biconditional', () => {
     expect(checkMixSum(DISTRICT_ROLE_MIX, FACILITY_RULES)).toEqual([]);
     for (const role of DISTRICT_ROLES) expect(mixRowSum(role)).toBe(1000);
+  });
+
+  it('AC-10A-12-CARRIER: every non-zero cell names a carrier, and the carrier allows the role', () => {
+    expect(checkCarriers(FACILITY_RULES)).toEqual([]);
+  });
+
+  it('AC-10A-12-CARRIER-TABLE: the committed per-cell carrier table agrees with the rules', () => {
+    expect(checkCarrierTable(FACILITY_RULES)).toEqual([]);
+  });
+
+  it('AC-10A-12-CARRIER: the port\'s real-estate cell is carried by the YARD, not the offices', () => {
+    // THE RULING (Producer ruling, 2026-10-22, on Studio's T10A-12 review, section 4(d)).
+    // The cell's NUMBER is unchanged at 100 per-mille; the FACILITY that carries it is the yard,
+    // because a dock with 100 per-mille of offices and agencies reads as a dock with a mini-CBD.
+    // The card's own rule ("yards never outside INDUSTRIAL/PORT") makes the yard legal in PORT.
+    expect(DISTRICT_ROLE_MIX.PORT.REAL_ESTATE_SERVICES).toBe(100);
+    expect(mixCarriers('PORT', 'REAL_ESTATE_SERVICES')).toEqual(['re_builders_yard']);
+    // The yard prefers the port, and it still prefers the basin.
+    const yard = facilityRule('re_builders_yard')!;
+    expect(yard.preferredRoles).toContain('PORT');
+    expect(yard.preferredRoles).toContain('INDUSTRIAL');
+    expect(yard.allowedRoles).toEqual(['INDUSTRIAL', 'PORT']);
+    // And the offices and the agencies are NOT preferred in the port, so they cannot carry it.
+    expect(facilityRule('re_office')!.preferredRoles).not.toContain('PORT');
+    expect(facilityRule('re_agency')!.preferredRoles).not.toContain('PORT');
+  });
+
+  it('AC-10A-12-CARRIER: the readout lists every non-zero cell, and every cell has a carrier', () => {
+    let nonZero = 0;
+    for (const role of DISTRICT_ROLES) {
+      for (const sector of SECTORS) {
+        if ((DISTRICT_ROLE_MIX[role][sector] ?? 0) > 0) nonZero += 1;
+      }
+    }
+    expect(MIX_CARRIERS.length).toBe(nonZero);
+    expect(CARRIER_TABLE.length).toBe(nonZero);
+    for (const c of MIX_CARRIERS) {
+      expect(c.facilities.length, `${c.role} x ${c.sector}`).toBeGreaterThan(0);
+      // The readout and the committed table agree, cell by cell.
+      const row = CARRIER_TABLE.find((t) => t[0] === c.role && t[1] === c.sector);
+      expect(row, `${c.role} x ${c.sector}`).toBeDefined();
+      expect(row![3], `${c.role} x ${c.sector}`).toEqual(c.facilities);
+      // And the carrier is a facility of that cell's sector.
+      for (const f of c.facilities) {
+        expect(facilityRule(f)!.sector, f).toBe(c.sector);
+      }
+    }
+  });
+
+  it('AC-10A-12-CARRIER: a zero cell has no carrier', () => {
+    for (const role of DISTRICT_ROLES) {
+      for (const sector of SECTORS) {
+        if ((DISTRICT_ROLE_MIX[role][sector] ?? 0) !== 0) continue;
+        expect(mixCarriers(role, sector), `${role} x ${sector}`).toEqual([]);
+      }
+    }
+  });
+
+  it('the two ruled mix numbers are the ones the card states', () => {
+    // TROPHY_RES x FOOD_HOSPITALITY 80 -> 20: one restaurant against a hard cap of one per
+    // district, so 80 asked for a target the mix-deficit term could never close.
+    expect(DISTRICT_ROLE_MIX.TROPHY_RES.FOOD_HOSPITALITY).toBe(20);
+    expect(DISTRICT_ROLE_MIX.TROPHY_RES.REAL_ESTATE_SERVICES).toBe(260);
+    // INDUSTRIAL x TECH_AI 100 -> 40: the only tech facility legal in INDUSTRIAL is
+    // `tech_datacenter`, and 100 permille is 19 hyperscale data centres in the basin.
+    expect(DISTRICT_ROLE_MIX.INDUSTRIAL.TECH_AI).toBe(40);
+    expect(DISTRICT_ROLE_MIX.INDUSTRIAL.MANUFACTURING).toBe(460);
   });
 
   it('AC-10A-12-TABLE-ROWS: the card\'s spot rows hold', () => {
@@ -581,6 +844,32 @@ const MUTANTS: readonly Mutant[] = [
       }
     },
   },
+  {
+    id: 'R15',
+    name: 'the port\'s real-estate cell loses its carrier (the yard stops preferring PORT)',
+    killer: 'AC-10A-12-CARRIER-TABLE',
+    mutate: (rules) => {
+      // The pre-ruling state: the yard prefers only INDUSTRIAL, so the port's cell has no
+      // carrier, and the offices and the agencies - which are merely ALLOWED there - would carry
+      // it by default. This is the exact defect the Producer ruled on.
+      const r = rules.find((x) => x.facility === 're_builders_yard')!;
+      r.preferredRoles = ['INDUSTRIAL'];
+    },
+  },
+  {
+    id: 'R16',
+    name: 'a carrier is MOVED to another facility of the same sector (the yard gives the cell to the office)',
+    killer: 'AC-10A-12-CARRIER-TABLE',
+    mutate: (rules) => {
+      // The office takes the port's real-estate cell and the yard gives it up. The MIX-SUM
+      // biconditional does NOT catch this: the sector may still sit in the port, so every other
+      // check passes. Only the per-cell carrier table does.
+      const yard = rules.find((x) => x.facility === 're_builders_yard')!;
+      yard.preferredRoles = yard.preferredRoles.filter((x) => x !== 'PORT');
+      const office = rules.find((x) => x.facility === 're_office')!;
+      office.preferredRoles = [...office.preferredRoles, 'PORT'];
+    },
+  },
 ];
 
 /** The checks, run against a mutated table, with the mix check reading the mutated table. */
@@ -592,6 +881,8 @@ function runChecks(rules: readonly FacilityRule[]): string[] {
   push('AC-10A-12-SECTORS', checkSectors(rules));
   push('AC-10A-12-RULE-SHAPE', checkRuleShape(rules));
   push('AC-10A-12-MIX-SUM', checkMixSum(DISTRICT_ROLE_MIX, rules));
+  push('AC-10A-12-CARRIER', checkCarriers(rules));
+  push('AC-10A-12-CARRIER-TABLE', checkCarrierTable(rules));
   push('AC-10A-12-TABLE-ROWS', checkTableRows(rules));
   push('AC-10A-12-STRUCTURES', checkStructures(rules));
   push('AC-10A-12-FAB', checkFab(rules));
@@ -605,9 +896,10 @@ describe('T10A-12 rules mutant baseline (committed)', () => {
     for (const c of CHECKS) expect(c.fn(), c.code).toEqual([]);
   });
 
-  it('the mutant set carries R1..R14', () => {
+  it('the mutant set carries R1..R16', () => {
     expect(MUTANTS.map((m) => m.id)).toEqual([
       'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11', 'R12', 'R13', 'R14',
+      'R15', 'R16',
     ]);
   });
 

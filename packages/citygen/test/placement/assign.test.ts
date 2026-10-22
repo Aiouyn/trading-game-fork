@@ -15,6 +15,8 @@ import { canonEncode } from '@tycoon/engine-core/canon';
 import { assignSectors, assignSectorsTraced, mixDeficit } from '../../src/placement/assign';
 import { bufferViolations, edgeDistanceCm } from '../../src/placement/buffers';
 import { districtRole } from '../../src/placement/classify';
+import { DISTRICT_ROLE_MIX } from '../../src/placement/rules';
+import { DISTRICT_ROLES, SECTORS } from '../../src/placement/types';
 import type {
   DistrictRole,
   Draw,
@@ -194,6 +196,57 @@ const referenceRegion = (): RegionInput => {
       terrainRole: 'flat_center',
     })),
     roles,
+    parcels,
+    ctx,
+  };
+};
+
+/**
+ * A region with ONLY the port district, on warehouse lots.
+ *
+ * It is the region where the port's real-estate cell can actually be carried: `re_office` and
+ * `re_agency` are legal in the port but need an OFFICE_TOWER or a SHOPFRONT lot, so on a
+ * warehouse lot they are EXCLUDED and the yard is the only facility of that sector that can
+ * take it.
+ */
+const portOnlyRegion = (): RegionInput => {
+  const districtId = 'dst_port_avalon_eastside_docks';
+  const parcels: PlacementParcel[] = [];
+  for (let i = 0; i < 3; i += 1) {
+    parcels.push(
+      parcel(`pcl_w${String(i).padStart(2, '0')}`, districtId, 'industrial', 8000, 'warehouse', {
+        polygon: rect(i * 40000, 0, 2000, 2000),
+      }),
+    );
+  }
+  const byId = new Map(parcels.map((p) => [p.id, p]));
+  const ctx: PlacementCtx = {
+    flagsOf: (id) => {
+      const p = byId.get(id);
+      return {
+        quayEdge: p ? [[0, 0], [2000, 0]] : null,
+        railAccess: false,
+        railPointCm: null,
+        crownParcel: false,
+      };
+    },
+    gridMw: () => true,
+    arterial: () => true,
+    nearDistanceM: () => 100,
+    bufferDistanceCm: (a, b) => {
+      const pa = byId.get(a);
+      const pb = byId.get(b);
+      if (!pa || !pb) return null;
+      return edgeDistanceCm(pa.polygon, pb.polygon);
+    },
+    receptorParcelIds: [],
+    placedFacilities: [],
+  };
+  return {
+    cityId: CITY,
+    regionId: 'reg_1',
+    districts: [{ id: districtId, cityId: CITY, tier: 'working', terrainRole: 'flat_center' }],
+    roles: { [districtId]: 'PORT' },
     parcels,
     ctx,
   };
@@ -464,6 +517,42 @@ describe('T10A-12 assign: the mix deficit', () => {
     // An empty district is at its whole target.
     expect(mixDeficit('CBD', [], 'dst_port_avalon_financial_mile', 'FINANCE')).toBe(300);
   });
+
+  it('the deficit is a SHARE, never a facility count (the mix is a relative priority)', () => {
+    // THE UNIT (Producer ruling, 2026-10-22, on Studio's T10A-12 review). The mix does NOT
+    // determine a facility count: it says how a district's sectors rank against each other, and
+    // the count is what the land does. The deficit term must therefore never read as a count.
+    //
+    // So: the deficit is BOUNDED BY THE CELL (a per-mille shortfall), and it is read WITHIN A
+    // ROW ONLY (one role's row, one sector's cell) - never across rows.
+    for (const role of DISTRICT_ROLES) {
+      for (const sector of SECTORS) {
+        const target = DISTRICT_ROLE_MIX[role][sector] ?? 0;
+        // An empty district is at its whole target: the deficit is the cell, and the cell is a
+        // per-mille number in [0, 1000], never a facility count.
+        const empty = mixDeficit(role, [], 'dst_port_avalon_eastside_docks', sector);
+        expect(empty, `${role} x ${sector}`).toBe(target);
+        expect(empty, `${role} x ${sector}`).toBeLessThanOrEqual(1000);
+        // A district over-target in that sector has no deficit.
+        const over: PlacementAssignment[] = [
+          {
+            parcelId: 'pcl_over',
+            districtId: 'dst_port_avalon_eastside_docks',
+            sector,
+            sectorKey: `SECTOR_${sector}`,
+            facility: 'log_depot',
+            styleKey: 'style.sector.logistics_transport.log_depot',
+            densityBand: 'LOW',
+            rulesVersion: 'placement.v1',
+            flags: { quayEdge: null, railAccess: false, railPointCm: null, crownParcel: false, bufferGreen: false },
+            visKey: `city.vis:${CITY}:pcl_over`,
+          },
+        ];
+        expect(mixDeficit(role, over, 'dst_port_avalon_eastside_docks', sector), `${role} x ${sector}`)
+          .toBe(0);
+      }
+    }
+  });
 });
 
 describe('T10A-12 assign: the role derivation agrees with the assignment', () => {
@@ -473,5 +562,36 @@ describe('T10A-12 assign: the role derivation agrees with the assignment', () =>
       const derived = districtRole(d, d.terrainRole);
       expect(derived, d.id).toBe(region.roles[d.id]);
     }
+  });
+});
+
+describe('T10A-12 assign: the port\'s real-estate cell is carried by the YARD', () => {
+  it('AC-10A-12-CARRIER: the yard takes a port parcel when no other facility of the cell can', () => {
+    // THE RULING, AND THE PROOF THAT IT IS LIVE CODE (Producer ruling, 2026-10-22, on Studio's
+    // T10A-12 review, section 4(d)). The port's REAL_ESTATE_SERVICES cell (100 per-mille) is
+    // carried by `re_builders_yard`, not by the offices and the agencies: a dock with 100
+    // per-mille of offices and agencies reads as a dock with a mini-CBD.
+    //
+    // The ruling is not vacuous, and this test proves it. `re_office` and `re_agency` are LEGAL
+    // in the port (the card says "any except as excluded"), but they need an OFFICE_TOWER or a
+    // SHOPFRONT lot and a 400-3,000 m2 / 40-200 m2 footprint, which a port yard does not have.
+    // The yard needs a WAREHOUSE lot and 2,000-10,000 m2, which a port yard DOES have. So on a
+    // port warehouse lot the offices and the agencies are EXCLUDED and the yard is the only
+    // candidate that survives - and it takes the parcel.
+    const region = portOnlyRegion();
+    const assigned = assignSectors(region, seededDraw(20261020));
+    const yards = assigned.filter((a) => a.facility === 're_builders_yard');
+    expect(yards.length).toBeGreaterThan(0);
+    for (const y of yards) {
+      expect(y.districtId).toBe('dst_port_avalon_eastside_docks');
+      expect(y.sector).toBe('REAL_ESTATE_SERVICES');
+    }
+    // And the offices and the agencies never take a port parcel in this region.
+    const offices = assigned.filter((a) => a.facility === 're_office' || a.facility === 're_agency');
+    expect(offices.length).toBe(0);
+  });
+
+  it('AC-10A-12-CARRIER: the port cell is 100 per-mille and it is the yard that carries it', () => {
+    expect(DISTRICT_ROLE_MIX.PORT.REAL_ESTATE_SERVICES).toBe(100);
   });
 });

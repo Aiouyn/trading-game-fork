@@ -321,11 +321,18 @@ describe('T10A-12 suitability: the hard exclusions', () => {
 
 describe('T10A-12 suitability: the preferred verdict and the score', () => {
   it('AC-10A-12-PREF: a PREFERRED parcel always outranks an ALLOWED parcel for the same facility', () => {
-    const rule = facilityRule('rc_shop')!;
-    // rc_shop prefers MIXED_CORE, TRANSIT_HUB and MIXED_RIVER; PRIME_RES is allowed but not
-    // preferred.
-    const preferred = verdict(lotParcel('pcl_1', 'shops', 100), 'MIXED_CORE', ctx(), rule);
-    const allowed = verdict(lotParcel('pcl_2', 'shops', 100), 'PRIME_RES', ctx(), rule);
+    // The fixture is `re_agency`, whose card row is "MIXED_CORE, CBD (offices)": the OFFICE
+    // carries the commercial core's real-estate cell, and the agency is merely allowed there.
+    // MIXED_RIVER is the role the agency carries (the card names no facility for the lofts, so
+    // the agency is City Dev's call, flagged in rules.ts).
+    //
+    // The fixture CHANGED with the carrier ruling: it used to be `rc_shop` with PRIME_RES as the
+    // allowed-but-not-preferred role, and the card's "+ PRIME_RES (shops)" makes the SHOP the
+    // carrier of PRIME_RES's retail cell, so that role is now preferred too and the test would
+    // have asserted a lie.
+    const rule = facilityRule('re_agency')!;
+    const preferred = verdict(lotParcel('pcl_1', 'shops', 100), 'MIXED_RIVER', ctx(), rule);
+    const allowed = verdict(lotParcel('pcl_2', 'shops', 100), 'MIXED_CORE', ctx(), rule);
     expect(preferred.verdict).toBe('PREFERRED');
     expect(allowed.verdict).toBe('ALLOWED');
     expect(preferred.score).toBeGreaterThan(allowed.score);

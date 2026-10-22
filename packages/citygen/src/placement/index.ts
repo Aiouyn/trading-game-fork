@@ -49,6 +49,7 @@ export {
   BUFFER_M,
   DISTRICT_ROLE_MIX,
   FACILITY_RULES,
+  MIX_CARRIERS,
   PLACEMENT_RULES_VERSION,
   SECTORS_ALLOWED_IN_ROLE,
   STRUCTURE_CAP_M,
@@ -57,10 +58,12 @@ export {
   facilitiesOfSector,
   facilityRule,
   facilityStyleKey,
+  mixCarriers,
   mixRowSum,
   rulesOfSector,
   sectorStyleKey,
 } from './rules';
+export type { MixCarrier } from './rules';
 
 export {
   DISTRICT_FLAGS,
