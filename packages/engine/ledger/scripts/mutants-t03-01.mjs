@@ -24,7 +24,37 @@
 // on a known-bad input AND on a known-good one before any mutant is scored.
 //
 // Usage: node scripts/mutants-t03-01.mjs   (the paths are resolved from this file, so the cwd does not matter)
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+//
+// ── ISOLATION: THIS HARNESS MUST BE THE ONLY THING TOUCHING THE PACKAGE'S src/ WHILE IT RUNS ────────────────
+// This harness MUTATES files under src/ and restores them afterwards. While it runs, the files it touches are
+// in a KNOWN-BAD state on purpose. So if ANYTHING ELSE writes to, reverts, or checks out those files while the
+// harness is running, the harness measures a tree that is not the tree it thinks it is measuring.
+//
+// THE SYMPTOMS, both of them real and both of them MISREAD as "the harness is broken":
+//
+//   1. A mutant is reported SURVIVED when it is not, or reported KILLED for the wrong reason. The mutation is
+//      applied to a file that something else then rewrote, so the guarding test ran against the WRONG source.
+//   2. THE SELF-TEST ROW REPORTS MISMATCH. This is the SECOND symptom of the same thing, and it is the one that
+//      misleads the most: the self-test and the mutant run DISAGREE when the file changed underneath them, so a
+//      MISMATCH looks like "the classifier is broken". It is not - it means the tree moved while the harness was
+//      reading it. (A genuinely broken classifier is what scripts/mutant-selfcheck.mjs exists to prove: it breaks
+//      the classifier on purpose and requires the self-test to FAIL on the broken copy.)
+//
+// THE TELL: `git status` and `git diff` disagreeing mid-run, or a file's SHA-256 changing while you watch it.
+// A number that changes between two runs of the SAME code on the SAME head is not a flaky number - it is a
+// CORRUPTED one. Do not report it as a defect in the code under test; find the other process.
+//
+// IN CI THIS IS AUTOMATIC: a fresh checkout, one job, one matrix entry per package, nothing else running.
+// LOCALLY IT IS NOT, and that is where the false readings come from. Before running this harness locally:
+//   * run it in a tree where nothing else is working (ONE SESSION PER WORKTREE), and
+//   * run it to completion - do not pipe it into `head`/`tail`, and do not let a tool timeout kill it.
+// A run that IS killed can no longer poison the next one: the original bytes of the file being mutated are
+// journalled under node_modules/.cache BEFORE the mutation is written, and the next run restores them and says
+// so before it measures anything. See THE JOURNAL AND THE PRISTINE CHECK below (QA's F-4).
+//
+// The rule this harness enforces on ITSELF is the same one, one level up: the CI step that runs the harness
+// (scripts/engine-check.mjs) must be the only thing touching that package's src/ while it runs.
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -169,6 +199,71 @@ function runVitest(args, { runnerEntry = VITEST_ENTRY, command = process.execPat
   return { verdict: 'RUNNER_ERROR', ranAtAll: true, detail: `the runner exited ${r.status} without reporting a failing test` };
 }
 
+// ── THE JOURNAL AND THE PRISTINE CHECK: A KILLED RUN MUST NOT POISON THE NEXT ONE (QA F-4) ──────────────────────
+// A `finally` cannot run when the process is KILLED. QA hit this for real: an interrupted probe left
+// src/accounts.ts MUTATED, and the next run then reported "SETUP FAILED (pattern not found)" for M23 - a
+// misleading setup failure instead of a loud one, and a live failure mode for a cancelled or timed-out CI job.
+// Two independent guards:
+//   (1) THE JOURNAL (survives SIGKILL, a timeout, a power cut). The original BYTES of a file are written to a
+//       journal in the git-ignored cache dir BEFORE the mutation is written, and the journal is deleted only
+//       after the file is restored and compared byte-for-byte. A run that finds a journal is running on a
+//       poisoned tree: it restores the file from the journal, says so LOUDLY, and only then measures anything.
+//   (2) THE PRISTINE CHECK (catches a leftover with no journal, and a local edit). If git is available, every
+//       file the mutant list mutates must be identical to HEAD before the first mutation. A dirty src file is
+//       either a leftover or a deliberate edit; either way a mutation test of it measures the wrong thing, and
+//       the restore would silently keep whatever it found. Refuse, and name the file.
+const JOURNAL_DIR = join(PKG, 'node_modules', '.cache', 't03-01-mutant-journal');
+/** The files this run writes to. */
+const MUTATED_FILES = [...new Set(MUTANTS.map((m) => m.file))];
+
+/** Restore every file a killed run left mutated. Returns the file names it restored. */
+function recoverInterrupted() {
+  if (!existsSync(JOURNAL_DIR)) return [];
+  const restored = [];
+  for (const entry of readdirSync(JOURNAL_DIR)) {
+    const journalPath = join(JOURNAL_DIR, entry);
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8'));
+    const path = join(PKG, journal.file);
+    const bytes = Buffer.from(journal.bytes, 'base64');
+    writeFileSync(path, bytes);
+    if (!readFileSync(path).equals(bytes)) throw new Error(`the interrupted run's file could not be restored: ${journal.file}`);
+    rmSync(journalPath, { force: true });
+    restored.push(journal.file);
+  }
+  return restored;
+}
+
+/**
+ * `{ checked: false }` when there is no git to ask (the journal still covers a killed run).
+ * `{ checked: true, dirty }` otherwise, where `dirty` names the files that differ from HEAD.
+ */
+function pristineCheck() {
+  const dirty = [];
+  for (const file of MUTATED_FILES) {
+    const r = spawnSync('git', ['-C', PKG, 'diff', '--quiet', 'HEAD', '--', file], { encoding: 'utf8' });
+    if (r.error !== undefined || r.status === null || (r.status !== 0 && r.status !== 1)) return { checked: false, dirty: [] };
+    if (r.status === 1) dirty.push(file);
+  }
+  return { checked: true, dirty };
+}
+
+/** The mutation currently applied, if any: restored by the `finally` below AND by a signal handler. */
+let inFlight = null;
+function restoreInFlight({ announce = false } = {}) {
+  if (inFlight === null) return false;
+  const { path, originalBytes, journal } = inFlight;
+  writeFileSync(path, originalBytes);
+  rmSync(journal, { force: true });
+  inFlight = null;
+  if (announce) console.log(`\n!!! restored ${path} (the tree is not left mutated)`);
+  return true;
+}
+// SIGINT/SIGTERM cannot be handled after SIGKILL, which is why the journal exists; these make the ordinary
+// Ctrl-C and `kill` cases quiet instead of leaving a warning for the next run.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => { restoreInFlight({ announce: true }); process.exit(130); });
+}
+
 /**
  * Apply a mutation, run `body`, and restore the file byte-for-byte (the restore is checked, not assumed).
  * Returns `{ setup }` when the mutation does not apply (the pattern is missing or not unique).
@@ -180,13 +275,47 @@ function withMutation(m, body) {
   const at = original.indexOf(m.from);
   if (at < 0) return { setup: `SETUP FAILED (pattern not found): ${m.name}` };
   if (original.indexOf(m.from, at + 1) >= 0) return { setup: `SETUP FAILED (pattern not unique): ${m.name}` };
-  writeFileSync(path, original.slice(0, at) + m.to + original.slice(at + m.from.length));
+  // THE JOURNAL GOES DOWN BEFORE THE MUTATION DOES, so there is no window in which a kill leaves a mutated
+  // file with nothing to restore it from.
+  mkdirSync(JOURNAL_DIR, { recursive: true });
+  const journal = join(JOURNAL_DIR, `${m.file.replace(/[\\/]/g, '__')}.json`);
+  writeFileSync(journal, JSON.stringify({ file: m.file, bytes: originalBytes.toString('base64') }));
+  inFlight = { path, originalBytes, journal };
   try {
+    writeFileSync(path, original.slice(0, at) + m.to + original.slice(at + m.from.length));
     return { result: body() };
   } finally {
-    writeFileSync(path, originalBytes);
+    restoreInFlight();
     if (!readFileSync(path).equals(originalBytes)) throw new Error(`the file was not restored byte-for-byte: ${m.file}`);
   }
+}
+
+// ── THE SCORING LAYER ───────────────────────────────────────────────────────────────────────────────────────
+// The classifier above says what ONE run was. This says what the RUN SET was, and whether the harness may exit 0.
+// It is a separate layer because it fails separately: QA's F-3 measured a copy whose scoring counted a
+// SETUP_FAILED as a KILL, and it still printed "10 of 10" and exited 0, because only the classifier was ever
+// exercised. A setup failure means NOTHING WAS MEASURED, so it can never be a kill; an empty run set and an
+// unknown verdict are failures too, for exactly the same reason.
+/**
+ * @param {string[]} verdicts one verdict per mutant
+ * @returns {{counts: {killed:number, survived:number, spawnErrors:number, runnerErrors:number, noTestsRan:number, fileFailed:number, setupFailed:number}, exitCode: number}}
+ */
+function score(verdicts) {
+  const counts = { killed: 0, survived: 0, spawnErrors: 0, runnerErrors: 0, noTestsRan: 0, fileFailed: 0, setupFailed: 0 };
+  for (const v of verdicts) {
+    switch (v) {
+      case 'KILLED': counts.killed++; break;
+      case 'SURVIVED': counts.survived++; break;
+      case 'SPAWN_ERROR': counts.spawnErrors++; break;
+      case 'NO_TESTS_RAN': counts.noTestsRan++; break;
+      case 'FILE_FAILED': counts.fileFailed++; break;
+      case 'RUNNER_ERROR': counts.runnerErrors++; break;
+      case 'SETUP_FAILED': counts.setupFailed++; break;
+      default: counts.runnerErrors++; break;   // an unknown verdict is not a pass either
+    }
+  }
+  const exitCode = verdicts.length > 0 && counts.killed === verdicts.length ? 0 : 1;
+  return { counts, exitCode };
 }
 
 // ── the self-test fixtures ─────────────────────────────────────────────────────────────────────────────────────
@@ -226,6 +355,13 @@ const COMMENT_ONLY = {
   from: '// 03 §3.2 chart of accounts, the account-key codec and the authored system entity ids (T03-01).',
   to: '// 03 §3.2 chart of accounts, the account-key codec and the authored system entity ids (T03-01). // SELFTEST',
 };
+/** A mutation whose pattern is not in the file: the SETUP fails, so nothing is measured. The seventh verdict. */
+const NO_SUCH_PATTERN = {
+  name: 'a mutant whose pattern is absent (the setup fails)',
+  file: 'src/accounts.ts',
+  from: '// THIS PATTERN CANNOT EXIST IN src/accounts.ts: the SETUP_FAILED self-test row',
+  to: 'x',
+};
 /** Run one mutation case: mutate, run the guarding test, restore. */
 const runMutationCase = (m, tests) => {
   const run = withMutation(m, () => runVitest(['run', tests]));
@@ -254,62 +390,124 @@ const SELFTEST_ROWS = [
     run: () => runVitest(['run', 'test/accountKey.test.ts'], { runnerEntry: join(FIXTURES, 'no-such-runner.mjs') }) },
   { case: 'a command that cannot be spawned at all', expected: 'SPAWN_ERROR',
     run: () => runVitest(['run', 'test/accountKey.test.ts'], { command: join(FIXTURES, 'no-such-command') }) },
+  { case: 'a mutation whose pattern is absent (the setup failed)', expected: 'SETUP_FAILED',
+    run: () => runMutationCase(NO_SUCH_PATTERN, 'test/accountKey.test.ts') },
 ];
 
-let killed = 0;
-let survived = 0;
-let spawnErrors = 0;
-let runnerErrors = 0;
-let noTestsRan = 0;
-let fileFailed = 0;
+// ── the scoring self-test: what a RUN SET means, not what one run was (QA F-3) ───────────────────────────────
+// Every row is a real call to `score`, the function the mutant loop itself uses, so a scoring copy that counts a
+// setup failure as a kill - the exact copy QA measured passing the old self-test 10/10 - fails HERE.
+// `killed` is asserted where a wrong COUNT would still produce the right exit code (the SETUP_FAILED row is the
+// one that matters: a setup failure counted as a kill is how QA's copy exited 0).
+const SCORING_ROWS = [
+  { case: 'two KILLED (the only passing run set)', verdicts: ['KILLED', 'KILLED'], expected: 0, killed: 2 },
+  { case: 'one SURVIVED', verdicts: ['KILLED', 'SURVIVED'], expected: 1, killed: 1 },
+  { case: 'one SETUP_FAILED (nothing was measured)', verdicts: ['KILLED', 'SETUP_FAILED'], expected: 1, killed: 1 },
+  { case: 'one SPAWN_ERROR', verdicts: ['KILLED', 'SPAWN_ERROR'], expected: 1, killed: 1 },
+  { case: 'one NO_TESTS_RAN', verdicts: ['KILLED', 'NO_TESTS_RAN'], expected: 1, killed: 1 },
+  { case: 'one FILE_FAILED', verdicts: ['KILLED', 'FILE_FAILED'], expected: 1, killed: 1 },
+  { case: 'one RUNNER_ERROR', verdicts: ['KILLED', 'RUNNER_ERROR'], expected: 1, killed: 1 },
+  { case: 'an unknown verdict (it must never pass)', verdicts: ['KILLED', 'SOMETHING_NEW'], expected: 1, killed: 1 },
+  { case: 'an EMPTY run set (nothing ran at all)', verdicts: [], expected: 1, killed: 0 },
+];
 
 console.log('=== T03-01 mutants: each must be KILLED by the test that guards it ===');
 console.log(`--- runner: ${process.execPath} ${VITEST_ENTRY ?? '(not found)'} run <test file>`);
-console.log('--- self-test: the harness must classify each case below correctly (every row is a real run) ---');
 const pad = (s, n) => String(s).padEnd(n);
-console.log(`${pad('case', 58)}${pad('expected', 15)}${pad('measured', 15)}${pad('ranAtAll', 9)}verdict`);
-writeFixtures();
-let selfFailures = 0;
-try {
-  for (const row of SELFTEST_ROWS) {
-    const r = row.run();
-    const ok = r.verdict === row.expected;
-    if (!ok) selfFailures++;
-    console.log(`${pad(row.case, 58)}${pad(row.expected, 15)}${pad(r.verdict, 15)}${pad(String(r.ranAtAll), 9)}${ok ? 'ok' : 'MISMATCH'}${r.detail === '' ? '' : `   (${r.detail})`}`);
-  }
-} finally {
-  removeFixtures();
+
+// A run that starts on a poisoned tree must HEAL IT AND SAY SO before it measures anything (QA's F-4).
+const restored = recoverInterrupted();
+if (restored.length > 0) {
+  console.log('');
+  console.log('!!! A PREVIOUS RUN WAS INTERRUPTED AND LEFT A MUTATED FILE BEHIND.');
+  for (const f of restored) console.log(`!!! restored ${f} from the journal: the tree is what that run started with.`);
+  console.log('!!! This run measures the RESTORED tree. If you wanted the interrupted run\'s numbers, run it again.');
+  console.log('');
 }
-console.log(`--- self-test: ${SELFTEST_ROWS.length - selfFailures} of ${SELFTEST_ROWS.length} cases classified as expected ---`);
-if (selfFailures > 0) {
-  console.log('SELFTEST FAILED: the harness misclassifies a known case, so its kill count proves nothing.');
-  // process.exitCode, not process.exit(): an immediate exit can truncate the pending stdout write, which would
-  // hide the very table the failure is about.
+
+const pristine = pristineCheck();
+if (pristine.dirty.length > 0) {
+  console.log('');
+  console.log('REFUSING TO RUN: these files differ from HEAD, so a mutation test of them would measure the wrong tree:');
+  for (const f of pristine.dirty) console.log(`  M ${f}`);
+  console.log('That is either a leftover mutation from an interrupted run or a deliberate edit. Either way it cannot');
+  console.log('be mutation-tested: restore it first (git checkout -- packages/engine/ledger/src) and check that');
+  console.log('`git status --porcelain` is empty. A deliberate edit is its author\'s to revert, not this harness\'s.');
   process.exitCode = 1;
 } else {
+  main();
+}
+
+/**
+ * The self-test, then the mutants. Split out of the top level so the pristine check can refuse to measure at all
+ * without an immediate `process.exit`, which would truncate the table this run exists to print.
+ */
+function main() {
+  let selfFailures = 0;
+  console.log('--- self-test: the CLASSIFIER (what ONE run was) ---');
+  console.log(`${pad('case', 58)}${pad('expected', 15)}${pad('measured', 15)}${pad('ranAtAll', 9)}verdict`);
+  writeFixtures();
+  try {
+    for (const row of SELFTEST_ROWS) {
+      const r = row.run();
+      const ok = r.verdict === row.expected;
+      if (!ok) selfFailures++;
+      console.log(`${pad(row.case, 58)}${pad(row.expected, 15)}${pad(r.verdict, 15)}${pad(String(r.ranAtAll), 9)}${ok ? 'ok' : 'MISMATCH'}${r.detail === '' ? '' : `   (${r.detail})`}`);
+    }
+  } finally {
+    removeFixtures();
+  }
+
+  console.log('');
+  console.log('--- self-test: the SCORING LAYER (what a RUN SET was - a setup failure is not a kill) ---');
+  console.log(`${pad('case', 58)}${pad('expected exit', 15)}${pad('measured exit', 15)}ok`);
+  for (const row of SCORING_ROWS) {
+    const s = score(row.verdicts);
+    const ok = s.exitCode === row.expected && (row.killed === undefined || s.counts.killed === row.killed);
+    if (!ok) selfFailures++;
+    console.log(`${pad(row.case, 58)}${pad(row.expected, 15)}${pad(s.exitCode, 15)}${ok ? 'ok' : 'MISMATCH'}`);
+  }
+
+  const totalCases = SELFTEST_ROWS.length + SCORING_ROWS.length;
+  console.log('');
+  console.log(`--- self-test: ${totalCases - selfFailures} of ${totalCases} cases measured as expected ---`);
+  if (selfFailures > 0) {
+    console.log('SELFTEST FAILED: the harness misclassifies a known case, so its kill count proves nothing.');
+    console.log('');
+    console.log('  BEFORE YOU FILE A DEFECT AGAINST THIS HARNESS, READ THIS.');
+    console.log('  A MISMATCH row has TWO causes, and the second one is far more common than it looks:');
+    console.log('    (a) the classifier or the scoring really is broken - which is what scripts/mutant-selfcheck.mjs');
+    console.log('        exists to prove, by breaking each LAYER on purpose (the classifier, and the scoring that');
+    console.log('        decides whether a run set may exit 0) and requiring this self-test to FAIL on each copy;');
+    console.log('    (b) THE TREE MOVED UNDERNEATH THE HARNESS. This harness mutates files under src/ and restores');
+    console.log('        them, so anything else that writes to, reverts or checks out those files while it runs');
+    console.log('        makes the self-test and the mutant run disagree. The tell is `git status` and `git diff`');
+    console.log('        disagreeing mid-run, or a file\'s SHA-256 changing while you watch it.');
+    console.log('  A number that changes between two runs of the SAME code on the SAME head is not a flaky number -');
+    console.log('  it is a CORRUPTED one. Check the tree first: run this harness in a tree where nothing else is');
+    console.log('  working, and make sure `git status --porcelain` is empty before and after.');
+    // process.exitCode, not process.exit(): an immediate exit can truncate the pending stdout write, which would
+    // hide the very table the failure is about.
+    process.exitCode = 1;
+    return;
+  }
+
+  const verdicts = [];
   for (const m of MUTANTS) {
     const run = withMutation(m, () => runVitest(['run', m.tests]));
-    if (run.setup !== undefined) { console.log(run.setup); survived++; continue; }
+    if (run.setup !== undefined) { console.log(run.setup); verdicts.push('SETUP_FAILED'); continue; }
     const { verdict, detail } = run.result;
-    if (verdict === 'KILLED') { console.log(`KILLED    ${m.name}`); killed++; }
-    else if (verdict === 'SURVIVED') {
-      console.log(`SURVIVED  ${m.name}   <-- the test does not guard this`);
-      survived++;
-    } else if (verdict === 'SPAWN_ERROR') {
-      console.log(`SPAWN ERROR  ${m.name}   <-- the runner never started: ${detail}`);
-      spawnErrors++;
-    } else if (verdict === 'NO_TESTS_RAN') {
-      console.log(`NO TESTS RAN  ${m.name}   <-- the mutant broke the module, not the test: ${detail}`);
-      noTestsRan++;
-    } else if (verdict === 'FILE_FAILED') {
-      console.log(`FILE FAILED  ${m.name}   <-- the mutant broke the file, not the test: ${detail}`);
-      fileFailed++;
-    } else {
-      console.log(`RUNNER ERROR  ${m.name}   <-- the runner reported no failing test: ${detail}`);
-      runnerErrors++;
-    }
+    verdicts.push(verdict);
+    if (verdict === 'KILLED') console.log(`KILLED    ${m.name}`);
+    else if (verdict === 'SURVIVED') console.log(`SURVIVED  ${m.name}   <-- the test does not guard this`);
+    else if (verdict === 'SPAWN_ERROR') console.log(`SPAWN ERROR  ${m.name}   <-- the runner never started: ${detail}`);
+    else if (verdict === 'NO_TESTS_RAN') console.log(`NO TESTS RAN  ${m.name}   <-- the mutant broke the module, not the test: ${detail}`);
+    else if (verdict === 'FILE_FAILED') console.log(`FILE FAILED  ${m.name}   <-- the mutant broke the file, not the test: ${detail}`);
+    else console.log(`RUNNER ERROR  ${m.name}   <-- the runner reported no failing test: ${detail}`);
   }
-  console.log(`\n=== mutants killed: ${killed}   mutants survived: ${survived}   spawn errors: ${spawnErrors}   no tests ran: ${noTestsRan}   file failed: ${fileFailed}   runner errors: ${runnerErrors} ===`);
-  if (killed !== MUTANTS.length) console.log(`=== NOT every mutant was killed: ${MUTANTS.length - killed} of ${MUTANTS.length} are unaccounted for ===`);
-  if (survived !== 0 || spawnErrors !== 0 || runnerErrors !== 0 || noTestsRan !== 0 || fileFailed !== 0) process.exitCode = 1;
+  // The scoring layer decides the exit code, and it is the same function the self-test above exercises.
+  const { counts, exitCode } = score(verdicts);
+  console.log(`\n=== mutants killed: ${counts.killed}   mutants survived: ${counts.survived}   spawn errors: ${counts.spawnErrors}   no tests ran: ${counts.noTestsRan}   file failed: ${counts.fileFailed}   runner errors: ${counts.runnerErrors}   setup failed: ${counts.setupFailed} ===`);
+  if (counts.killed !== MUTANTS.length) console.log(`=== NOT every mutant was killed: ${MUTANTS.length - counts.killed} of ${MUTANTS.length} are unaccounted for ===`);
+  process.exitCode = exitCode;
 }

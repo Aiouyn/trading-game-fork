@@ -1,15 +1,17 @@
 // The mutant harness's own negative control: prove that the harness's SELF-TEST is not vacuous.
 //
 // A detector that never fires is worse than no detector, because it reads as a guard. The harness's self-test claims
-// to catch a broken classifier. This script proves the claim by breaking the classifier on purpose and showing that
-// the self-test FAILS on the broken copy.
+// to catch a broken classifier AND a broken scoring layer. This script proves the claim by breaking each layer on
+// purpose and showing that the self-test FAILS on each broken copy.
 //
-// It writes a broken copy of the harness to the git-ignored cache dir (never into the repo), with ONE of the TWO
-// bugs that made the original harness report a perfect score while measuring nothing:
+// It writes a broken copy of the harness to the git-ignored cache dir (never into the repo), with ONE of the
+// THREE defects below, each broken on its own so each is proven to be caught on its own:
 //   1. the kill predicate is the original vacuous one — "a non-zero exit is a kill", whatever the runner printed;
 //   2. the runner is the original POSIX `.bin` shim, which cmd.exe cannot execute on Windows, so the spawn exits
-//      non-zero and NO TEST EVER RUNS.
-// Each bug is broken on its own, so each is proven to be caught on its own.
+//      non-zero and NO TEST EVER RUNS;
+//   3. THE SCORING LAYER counts a SETUP_FAILED as a KILL (QA's F-3). This is not a classifier defect at all:
+//      with the old self-test this copy printed "10 of 10" and exited 0, because only the classifier was ever
+//      exercised. A setup failure means NOTHING WAS MEASURED, so counting it as a kill must fail the self-test.
 //
 // Usage: node scripts/mutant-selfcheck.mjs
 // Expected: the broken copies print "SELFTEST FAILED" and exit non-zero. A broken copy that PASSES is the bug.
@@ -35,10 +37,14 @@ const REAL_RUNNER = `  join(PKG, 'node_modules', 'vitest', 'vitest.mjs'),
 const SHIM_RUNNER = `  join(PKG, 'node_modules', '.bin', 'vitest'),
 ].find((p) => existsSync(p));`;
 
-/** The two defects, each broken on its own. */
+const REAL_SCORING = `      case 'SETUP_FAILED': counts.setupFailed++; break;`;
+const VACUOUS_SCORING = `      case 'SETUP_FAILED': counts.killed++; break;`;
+
+/** The three defects, each broken on its own. */
 const DEFECTS = [
   { name: 'the vacuous kill predicate (a non-zero exit is a kill)', apply: (t) => t.replace(VACUOUS_PREDICATE, VACUOUS_REPLACEMENT), need: VACUOUS_PREDICATE },
   { name: 'the POSIX .bin shim (the spawn never starts)', apply: (t) => t.replace(REAL_RUNNER, SHIM_RUNNER), need: REAL_RUNNER },
+  { name: 'the SCORING counts a SETUP_FAILED as a KILL (nothing was measured)', apply: (t) => t.replace(REAL_SCORING, VACUOUS_SCORING), need: REAL_SCORING },
 ];
 
 function makeBroken(defect, dst) {

@@ -22,6 +22,15 @@
 //   (c) the NEGATIVE CONTROL (scripts/mutant-selfcheck.mjs) deliberately writes broken copies of the
 //       harness, so it is a developer tool and is NOT run here. It must never be: it proves the
 //       self-test fires, by making it fire on purpose. The name pattern below keeps it out.
+//   (d) ISOLATION: this step must be the ONLY thing touching that package's src/ while it runs. The harness
+//       mutates files under src/ and restores them, so anything else writing to those files concurrently
+//       corrupts the harness's verdict - a mutant is reported SURVIVED when it is not, or the harness's own
+//       self-test row reports MISMATCH because the self-test and the mutant run disagree about a file that
+//       changed underneath them. In CI that is automatic (a fresh checkout, one job, one matrix entry per
+//       package). Locally it is NOT, which is where false readings come from. A number that changes between
+//       two runs of the same code on the same head is not a flaky number - it is a corrupted one. The tell is
+//       `git status` and `git diff` disagreeing mid-run. The harness's own docstring says the same thing, and
+//       names the MISMATCH row as the second symptom.
 import { existsSync, readdirSync } from 'node:fs';
 import { execSync, spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
