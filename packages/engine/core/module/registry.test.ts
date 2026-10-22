@@ -24,6 +24,13 @@ const err = (f: () => unknown): { code: string; message: string } | undefined =>
 const coreDir = join(__dirname, '..');
 const relCore = (f: string): string => relative(coreDir, f).split(/[\\/]/).join('/');
 
+// The zod-importer rule, ONCE, at module scope, and the LIVE assertion below calls it.
+// The negative checks call the SAME function, so a weakening of the rule is killed by the
+// negative checks and a weakening of the live assertion is impossible - there is only one rule.
+// (Same shape as PR #10's seam.test.ts.)
+const ZOD_IMPORTERS = ['module/ctx.ts', 'module/define.ts', 'module/registry.test.ts', 'module/registry.ts', 'module/views.ts'] as const;
+const assertZodImporters = (files: readonly string[]): void => { expect(files).toEqual(ZOD_IMPORTERS); };
+
 describe('T02-11 module registry', () => {
   it('valid set: 05 without 04/14A/13A -> MOD_MISSING_DEP naming 04; adding them builds, sorted by (module number, unit id)', () => {
     const base = [mod('05', { streams: ['mkt.idio'] }), mod('03', { services: { ledger: provider }, streams: ['ledger.audit_sample'] }), mod('02', { streams: ['core.genesis'] })];
@@ -115,17 +122,11 @@ describe('AC-02-11-PARAMS-PKG / E-70 (3)', () => {
   });
   it('zod is imported in core only by the handler-schema files (module/ctx.ts, module/views.ts, module/define.ts, module/registry.ts) and their test', () => {
     const users = files(coreDir).filter((f) => /from\s+['"]zod['"]/.test(readFileSync(f, 'utf8'))).map(relCore).sort();
-    expect(users).toEqual(['module/ctx.ts', 'module/define.ts', 'module/registry.test.ts', 'module/registry.ts', 'module/views.ts']);
+    assertZodImporters(users);
   });
 });
 
 describe('AC-02-11-PARAMS-PKG / E-70 (3) negative checks', () => {
-  // The zod-importer rule as a function, so a test can prove it REJECTS a widened set. Writing the
-  // assertion inline would make that impossible; keeping it here is what makes the negative check below
-  // a real proof instead of a restatement. (Same shape as PR #10's seam.test.ts.)
-  const ZOD_IMPORTERS = ['module/ctx.ts', 'module/define.ts', 'module/registry.test.ts', 'module/registry.ts', 'module/views.ts'] as const;
-  const assertZodImporters = (files: readonly string[]): void => { expect(files).toEqual(ZOD_IMPORTERS); };
-
   it('the zod-importer rule requires EXACTLY those five files: a widened set FAILS', () => {
     // One file too many is a failure; one file too few is a failure; a different single file is a
     // failure. The rule is "exactly these five", not "at most these five".
