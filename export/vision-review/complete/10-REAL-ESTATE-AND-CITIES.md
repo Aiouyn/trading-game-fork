@@ -528,7 +528,38 @@ This keeps every district name used by the old vision (01 §3.8, 04 §6.1, 06 §
 
 Run per city at P2 after 04's bloc macro step. Inputs from 04: bloc GDP growth `g_b` (per GY), inflation `π_b`, unemployment `u_b`, policy rate `i_b`, 10-year yield `y10_b`, credit conditions `c_b ∈ [−1, 1]` (−1 tight), fear index `F` (0..100). From 16: household income index and consumption. From 09: employment by city and sector.
 
-1. **Jobs.** `jobs_c = Σ_sector jobsBySector_c`. Each sector maps to a use class: office sectors (finance, tech, media, professional services, government) → OFFICE; retail and food → RETAIL; manufacturing, logistics, energy, mining → INDUSTRIAL; tourism → HOSPITALITY. Jobs come from 09 (every player and named business reports `staff` and its `cityId`) plus 16's aggregate `frm` sector employment for the city, which 16 sizes so the city's employment rate starts at `1 − u_b`. Apply `EmploymentDelta`s whose `effectiveTick` has passed.
+1. **Jobs.** `jobs_c = Σ_sector jobsBySector_c`. Each sector maps to a use class **per facility**, by the table below (E-82). Jobs come from 09 (every player and named business reports `staff` and its `cityId`) plus 16's aggregate `frm` sector employment for the city, which 16 sizes so the city's employment rate starts at `1 − u_b`. Apply `EmploymentDelta`s whose `effectiveTick` has passed.
+   - **The use-class map is per FACILITY, not per sector (E-82).** A sector's use class is the **set** of use classes its facilities carry, and a facility's use class is fixed by the table below. `jobsBySector` is keyed by **market sector** (06 `SectorId`), so a sector that spans two use classes contributes its jobs to **both** use classes' demand (`demandArea_{d,OFFICE}` and `demandArea_{d,RETAIL}` in §3.4.2); the split within the sector is by the facility the employment is reported against. `EmploymentDelta.use` names the use class of the **specific facility** the delta is about, not of the sector.
+
+   | Sector | Facility | Use class |
+   |---|---|---|
+   | FOOD_HOSPITALITY | `fh_cafe`, `fh_restaurant`, `fh_food_hall` | RETAIL |
+   | | `fh_hotel` | HOSPITALITY |
+   | RETAIL_CONSUMER | `rc_shop`, `rc_supermarket`, `rc_big_box` | RETAIL |
+   | REAL_ESTATE_SERVICES | `re_agency`, `re_office` | OFFICE |
+   | | `re_builders_yard` | INDUSTRIAL |
+   | LOGISTICS_TRANSPORT | `log_port_terminal`, `log_warehouse`, `log_depot`, `log_courier_hub` | INDUSTRIAL |
+   | ENERGY | `en_hq` | OFFICE |
+   | | `en_tank_farm`, `en_plant`, `en_substation` | INDUSTRIAL |
+   | MINING_AGRICULTURE | `ma_trading_office` | OFFICE |
+   | | `ma_bulk_terminal`, `ma_grain_silo` | INDUSTRIAL |
+   | MANUFACTURING | `mf_light`, `mf_plant`, `mf_heavy`, `mf_chip_fab` | INDUSTRIAL |
+   | TECH_AI | `tech_office`, `tech_campus` | OFFICE |
+   | | `tech_datacenter` | DATACENTER |
+   | FINANCE | `fin_exchange`, `fin_tower` | OFFICE |
+   | | `fin_branch` | RETAIL |
+   | MEDIA_ENTERTAINMENT | `me_broadcaster` | OFFICE |
+   | | `me_studio` | INDUSTRIAL |
+   | | `me_venue` | RETAIL |
+   | HEALTH | `hl_hospital`, `hl_lab` | OFFICE |
+   | | `hl_clinic` | RETAIL |
+   | LUXURY | `lx_boutique`, `lx_flagship`, `lx_atelier` | RETAIL |
+   | SECURITY_LEGAL_INTEL | `sl_law_firm`, `sl_cyber` | OFFICE |
+   | | `sl_guard_depot` | INDUSTRIAL |
+
+   - **`DATACENTER` is a use class in the jobs-and-demand map (E-82).** `tech_datacenter` is a `DATACENTER_SITE` (10 §3.6.2) with its own demand branch `demandMW_{d,DATACENTER}` (§3.4.2), its own maintenance rate `PARAM.maint_rate_<use>` (§3.7.1, DATACENTER 0.010 per GY) and its own cap premium `PARAM.cap_premium_<use>_<tier>` (§3.8, DATACENTER 0.035). It is **not** an OFFICE job and it is **not** leased by area, so it contributes **no** `demandArea_{d,OFFICE}` and no jobs to the office pool; its employment is reported against the DATACENTER use and counted in `dcPowerDemandMW` (§2.9). A data centre that is sited on an OFFICE parcel is a zoning error, not a second office: `DATACENTER` is a distinct use with its own demand, its own maintenance rate and its own cap premium.
+   - **Which use classes exist in a district is decided by ZONING, never by a sector (E-82).** The use class of a **building or parcel** is a property of its zoned use (10 §3.19.4) and its `propertyType` (10 §3.6.2). The table above says what use class a **facility** carries when it is placed; it never decides which use classes are present where. The NPC pool's `<use>` segment (10 §3.0) is keyed from the **zoned use**, never from the placed facility's sector, and placement never sets a pool's stock level.
+   - **`CIVIC` and `GREEN` are not job uses (E-82).** No sector's facility carries them, and they contribute no jobs: a civic parcel is a city facility (10 §2.10) and a green parcel is open space. `RES` is likewise not a business use class in this map; residential jobs are counted in the household sector (16 §3.2.3), not in `jobsBySector`.
 2. **Labor force and migration.**
    ```
    laborForce_c = population_c · PARAM.lf_share (0.50)
