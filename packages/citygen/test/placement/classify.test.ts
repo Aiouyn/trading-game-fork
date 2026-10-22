@@ -88,6 +88,71 @@ const districtOf = (distId: string): PlacementDistrict => {
   };
 };
 
+/**
+ * THE DERIVATION, written out here independently of the module, so the test is not the module
+ * comparing itself to itself. The order is the card's and it is load-bearing:
+ *   cbd -> port -> working -> trophy -> prime -> station (mid) -> riverOrCanal (mid) -> MIXED_CORE
+ */
+const deriveRole = (tier: string, f: FlagRow): string => {
+  if (f.cbd) return 'CBD';
+  if (f.port) return 'PORT';
+  if (tier === 'working') return 'INDUSTRIAL';
+  if (tier === 'trophy') return 'TROPHY_RES';
+  if (tier === 'prime') return 'PRIME_RES';
+  if (tier === 'mid') {
+    if (f.station) return 'TRANSIT_HUB';
+    if (f.riverOrCanal) return 'MIXED_RIVER';
+    return 'MIXED_CORE';
+  }
+  throw new Error(`unknown tier ${tier}`);
+};
+
+/**
+ * The CODE lines of `src` that read a `role` field - the shape a copy of the shipped role
+ * column takes, and the only way that column can be read.
+ *
+ * The scan is over the code lines only: a line whose first non-space character is a comment
+ * marker is prose, and this file's prose names the column on purpose.
+ */
+const roleColumnReads = (src: string): string[] => {
+  const hits: string[] = [];
+  src.split('\n').forEach((text, i) => {
+    const trimmed = text.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
+    if (trimmed === '') return;
+    if (/\.role\b/.test(text) || /\brole\s*:/.test(text)) hits.push(`${i + 1}: ${trimmed}`);
+  });
+  return hits;
+};
+
+/**
+ * The rows where a role function differs from the independent ladder, as
+ * `<id>: module <X>, ladder <Y>`.
+ *
+ * The ladder is the reference, never the shipped `role` column: comparing against the column
+ * would compare the derivation with the file it is supposed to reproduce, which proves nothing
+ * about the module.
+ */
+const roleMismatches = (
+  fn: (d: PlacementDistrict, terrainRole: string) => string,
+): string[] => {
+  const out: string[] = [];
+  for (const row of SHIPPED_FLAGS.districts) {
+    const tier = SPEC_TIERS.get(row.distId);
+    if (!tier) continue;
+    const expected = deriveRole(tier, row);
+    const actual = fn(districtOf(row.distId), 'flat_center');
+    if (actual !== expected) out.push(`${row.distId}: module ${actual}, ladder ${expected}`);
+  }
+  return out;
+};
+
+/** The source of the module under test, read at test time (never a copy kept in the test). */
+const CLASSIFY_SRC = readFileSync(
+  fileURLToPath(new URL('../../src/placement/classify.ts', import.meta.url)),
+  'utf8',
+);
+
 // ---------- the fixtures ----------
 
 /** A parcel fixture. */
@@ -154,22 +219,6 @@ describe('T10A-12 classify: the district role', () => {
   });
 
   it('AC-10A-12-ROLE-ALL: the derivation reproduces the shipped role column for ALL 105 districts', () => {
-    // The DERIVATION, written out here independently of the module, so the test is not the
-    // module comparing itself to itself. The order is the card's and it is load-bearing.
-    const derive = (tier: string, f: FlagRow): string => {
-      if (f.cbd) return 'CBD';
-      if (f.port) return 'PORT';
-      if (tier === 'working') return 'INDUSTRIAL';
-      if (tier === 'trophy') return 'TROPHY_RES';
-      if (tier === 'prime') return 'PRIME_RES';
-      if (tier === 'mid') {
-        if (f.station) return 'TRANSIT_HUB';
-        if (f.riverOrCanal) return 'MIXED_RIVER';
-        return 'MIXED_CORE';
-      }
-      throw new Error(`unknown tier ${tier}`);
-    };
-
     const mismatches: string[] = [];
     for (const row of SHIPPED_FLAGS.districts) {
       const tier = SPEC_TIERS.get(row.distId);
@@ -177,7 +226,7 @@ describe('T10A-12 classify: the district role', () => {
         mismatches.push(`${row.distId}: no 22 §3.3 tier`);
         continue;
       }
-      const derived = derive(tier, row);
+      const derived = deriveRole(tier, row);
       if (derived !== row.role) {
         mismatches.push(`${row.distId}: derived ${derived}, shipped ${row.role}`);
       }
@@ -186,16 +235,79 @@ describe('T10A-12 classify: the district role', () => {
     expect(mismatches).toEqual([]);
   });
 
-  it('the module derives the same roles as the independent derivation, for all 105 districts', () => {
-    // The module is checked against the shipped column (above) AND against this per-row pass, so
-    // a module that returned a constant would fail the first check but not this one.
-    const derived: { id: string; role: string }[] = SHIPPED_FLAGS.districts.map((row) => ({
-      id: row.distId,
-      role: districtRole(districtOf(row.distId), 'flat_center'),
-    }));
-    expect(derived.length).toBe(105);
-    const distinct = derived.map((d) => d.role);
-    expect(new Set(distinct).size).toBe(8);
+  it('the MODULE derives the same roles as the independent ladder, for all 105 districts', () => {
+    // This is the check that makes the module itself accountable. It compares the module's
+    // OUTPUT, row by row, against the ladder written out independently above - NOT against the
+    // shipped `role` column and NOT against the module's own shape.
+    //
+    // WHY NOT THE COLUMN: the derivation and the column agree today, so a module that COPIED
+    // the column would be observationally identical - only a source-level check can tell a
+    // derivation from a copy. The copy mutant is committed below (R17) and is killed by the
+    // source-level check, not by this one.
+    // WHY NOT THE SHAPE: 105 rows and 8 distinct roles are satisfied by a copy too.
+    expect(roleMismatches(districtRole)).toEqual([]);
+  });
+
+  it('the MODULE derives the role, it does not copy the shipped role column (source-level)', () => {
+    // THE COPY MUTANT IS INVISIBLE TO ANY BEHAVIOURAL TEST. The derivation and the column agree
+    // on all 105 districts today, so a module that read `row.role` would return the same 105
+    // values and pass every check above. Only a source-level check can tell them apart.
+    //
+    // A code line that reads `.role` off a row, or that declares `role:` in an object literal,
+    // is the shape a copy takes - there is no other way to read the column. The shipped module
+    // derives from `flags?.cbd`, `flags?.port`, `flags?.station` and `flags?.riverOrCanal` plus
+    // the parsed tier, so it contains neither.
+    expect(roleColumnReads(CLASSIFY_SRC)).toEqual([]);
+  });
+
+  it('a module that COPIED the shipped role column is killed (the committed copy mutants)', () => {
+    // The mutants are committed here so the coverage lives in the repo, in the house pattern of
+    // rules.test.ts's R1..R16. They are applied to the SOURCE TEXT of the module, because that is
+    // the only level at which the difference between a copy and a derivation is observable: the
+    // derivation and the shipped column agree on all 105 districts today, so a copy returns the
+    // same values and every behavioural check passes with it in place.
+    //
+    // THREE mutants, one per way the check can be weakened. Each is killed ONLY by the half of
+    // the check it names, so weakening ANY half of the check fails this test rather than
+    // silently passing it (the PR #18 defect class: a check that claims a property it does not
+    // prove).
+    const copy = (extra?: string): string =>
+      CLASSIFY_SRC.split('\n')
+        .map((line) => {
+          if (/const\s+riverOrCanal\s*=/.test(line)) {
+            return `  const roleCol = (flagsJson as { districts?: { distId: string; role: string }[] }).districts?.find((r) => r.distId === d.id)?.role ?? 'MIXED_CORE';`;
+          }
+          if (/if\s*\(cbd\)\s*return/.test(line)) return `  if (roleCol) return roleCol as DistrictRole;`;
+          return line;
+        })
+        .join('\n')
+        .concat(extra ?? '');
+
+    // R17 - the copy as a developer would write it: it reads the column off a row (`.role`).
+    // The mutation landed, and the check rejects it.
+    const r17 = copy();
+    expect(r17).toContain('roleCol');
+    expect(r17).not.toBe(CLASSIFY_SRC);
+    expect(roleColumnReads(r17).length).toBeGreaterThan(0);
+
+    // R18 - the copy WITHOUT a `role:` annotation anywhere, so it trips ONLY the `.role` half of
+    // the check. If the `.role` half is weakened or removed, R18 survives and this test fails.
+    const r18 = copy().replace(/\{\s*distId:\s*string;\s*role:\s*string\s*\}/, '{ distId: string }');
+    expect(r18).not.toContain('role: string');
+    expect(r18).toContain('.role');
+    expect(roleColumnReads(r18).filter((h) => h.includes('.role')).length).toBeGreaterThan(0);
+
+    // R19 - a source that declares `role:` and nothing else, so it trips ONLY the `role:` half.
+    // If that half is weakened or removed, R19 survives and this test fails.
+    const r19 = `${CLASSIFY_SRC}\nconst copyShape = { role: 'CBD' };\n`;
+    expect(roleColumnReads(r19).filter((h) => h.includes('role:')).length).toBeGreaterThan(0);
+
+    // THE KILL: the SAME check that passes on the shipped module rejects every copy. The check is
+    // called, not restated, so weakening it fails this test instead of silently passing it.
+    expect(roleColumnReads(CLASSIFY_SRC)).toEqual([]);
+    expect(roleColumnReads(r17).length).toBeGreaterThan(0);
+    expect(roleColumnReads(r18).length).toBeGreaterThan(0);
+    expect(roleColumnReads(r19).length).toBeGreaterThan(0);
   });
 
   it('the derivation ORDER is load-bearing: tier-before-flags gives a different answer', () => {
