@@ -37,7 +37,7 @@
 
 .swatches { display: flex; gap: var(--sp-12); flex-wrap: wrap; }
 .swatch { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); padding: 2px; border-radius: var(--r-card); }
-.swatch-mini { position: relative; display: block; width: 72px; height: 48px; padding: 6px; background: var(--bg0); border: 1px solid var(--line); border-radius: var(--r-input); outline: 2px solid transparent; outline-offset: 2px; }
+.swatch-mini { position: relative; display: block; width: 72px; height: 48px; padding: 6px; background: var(--bg0); border: 1px solid var(--fg-faint); border-radius: var(--r-input); outline: 2px solid transparent; outline-offset: 2px; }
 .swatch[aria-checked="true"] .swatch-mini { outline-color: var(--fg); }
 .swatch-win { display: flex; flex-direction: column; justify-content: space-between; height: 100%; background: var(--win); border-radius: 2px; padding: 4px; }
 .swatch-acc { display: block; height: 4px; width: 60%; background: var(--acc); }
@@ -47,7 +47,7 @@
 .swatch-ticks .l { background: var(--loss); }
 .swatch-check { position: absolute; right: -6px; bottom: -6px; width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center; color: var(--fg); background: var(--bg0); border: 1px solid var(--fg); box-sizing: border-box; }
 .swatch-check svg { width: 10px; height: 10px; }
-.swatch-name { font-size: var(--fs-13); text-align: center; white-space: nowrap; }
+.swatch-name { font-size: var(--fs-13); text-align: center; }
 
 .shells { display: flex; flex-direction: column; }
 .shell-row { display: flex; align-items: center; gap: var(--sp-12); min-height: 44px; border-bottom: 1px solid var(--line); text-align: left; padding: 4px 6px; flex-wrap: wrap; }

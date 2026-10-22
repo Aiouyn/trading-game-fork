@@ -36,7 +36,7 @@ describe("17B settings strings", () => {
       expect(en.roles[c.roleKey]).toBeTruthy();
       expect(fr.roles[c.roleKey]).toBeTruthy();
     }
-    expect(CREDITS.map((c) => fr.roles[c.roleKey])).toEqual(["conception", "interface et applis", "Port Avalon", "marchés", "Quay"]);
-    expect(CREDITS.map((c) => en.roles[c.roleKey])).toEqual(["design", "shell and apps", "Port Avalon", "markets", "Quay"]);
+    expect(CREDITS.map((c) => fr.roles[c.roleKey])).toEqual(["conception", "interface et applis", "ville", "marchés", "quai"]);
+    expect(CREDITS.map((c) => en.roles[c.roleKey])).toEqual(["design", "shell and apps", "city", "markets", "quay"]);
   });
 });

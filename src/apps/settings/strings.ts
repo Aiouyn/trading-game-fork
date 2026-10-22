@@ -51,7 +51,7 @@ const EN = {
   colComponent: "Component", colLicence: "Licence", colLink: "Link",
   chartsBy: "Charts by TradingView",
   credits: "Credits",
-  roles: { design: "design", shellApps: "shell and apps", city: "Port Avalon", markets: "markets", quay: "Quay" },
+  roles: { design: "design", shellApps: "shell and apps", city: "city", markets: "markets", quay: "quay" },
   integrity: "Public integrity report",
   newTab: "(opens in a new tab)",
 };
@@ -101,7 +101,7 @@ const FR: Strings = {
   colComponent: "Composant", colLicence: "Licence", colLink: "Lien",
   chartsBy: "Charts by TradingView", // attribution line stays verbatim (licence requirement)
   credits: "Crédits",
-  roles: { design: "conception", shellApps: "interface et applis", city: "Port Avalon", markets: "marchés", quay: "Quay" },
+  roles: { design: "conception", shellApps: "interface et applis", city: "ville", markets: "marchés", quay: "quai" },
   integrity: "Rapport d’intégrité public",
   newTab: "(s’ouvre dans un nouvel onglet)",
 };
