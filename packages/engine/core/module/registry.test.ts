@@ -146,5 +146,11 @@ describe('AC-02-11-PARAMS-PKG / E-70 (3) negative checks', () => {
     expect(relCore(join(coreDir, 'params.ts'))).toBe('params.ts');
     // A Windows-style and a POSIX-style path to the same file normalise to the SAME string.
     expect(relCore('C:\\a\\b\\ctx.ts')).toBe(relCore('C:/a/b/ctx.ts'));
+    // The NAME is preserved verbatim: a mixed-case file name is not lower-cased.
+    expect(relCore(join(coreDir, 'module', 'Views.ts'))).toBe('module/Views.ts');
+    // A path OUTSIDE coreDir keeps its '..' prefix: it is never silently turned into a
+    // plausible in-tree relative path (which would let an out-of-tree file satisfy the rule).
+    expect(relCore(join(coreDir, '..', 'x.ts'))).toBe('../x.ts');
+    expect(relCore(join(coreDir, '..', '..', 'x.ts'))).toBe('../../x.ts');
   });
 });
