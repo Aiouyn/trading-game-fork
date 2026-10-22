@@ -18,6 +18,10 @@ export function Sheet({ side = "bottom", label, onClose, children, testId = "she
   const ref = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   useEffect(() => { close.current = onClose; });
+  // The opener is read on close, not at mount: the sheet's owner resolves it (the Quay mark is mounted by
+  // the phone shell, not by the sheet), and the ref object itself never changes.
+  const opener = useRef(returnFocusTo);
+  useEffect(() => { opener.current = returnFocusTo; });
   useEffect(() => {
     // Fallback opener: whatever was focused when the sheet mounted (the keyboard path).
     const mounted = document.activeElement as HTMLElement | null;
@@ -35,9 +39,8 @@ export function Sheet({ side = "bottom", label, onClose, children, testId = "she
     document.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("keydown", onKey, true);
-      // The explicit opener wins; it is read on close, because the opener is resolved by its owner once the
-      // sheet is up (the Quay mark is mounted by the phone shell, not by the sheet).
-      (returnFocusTo?.current ?? mounted)?.focus?.();
+      // The explicit opener wins over the element that happened to be focused at mount.
+      (opener.current?.current ?? mounted)?.focus?.();
     };
   }, []);
   return (

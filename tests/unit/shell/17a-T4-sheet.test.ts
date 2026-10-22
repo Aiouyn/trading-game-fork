@@ -13,7 +13,7 @@
 //      does not focus the button it long-presses, so document.activeElement at mount is <body>.
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -22,11 +22,14 @@ const onClose = () => { closed++; };
 
 import { Sheet } from "@/components/shell/Sheet";
 
-const mount = async (props: Partial<React.ComponentProps<typeof Sheet>> = {}) => {
+type SheetProps = Omit<React.ComponentProps<typeof Sheet>, "children">;
+const mount = async (props: Partial<SheetProps> = {}) => {
   const el = document.createElement("div");
   document.body.append(el);
   const root = createRoot(el);
-  await act(async () => { root.render(createElement(Sheet, { label: "Recent", onClose, children: null, ...props })); });
+  // children is passed as createElement's third argument, not as a prop (react/no-children-prop).
+  const full = { label: "Recent", onClose, ...props } as React.ComponentProps<typeof Sheet>;
+  await act(async () => { root.render(createElement(Sheet, full, null)); });
   return { el, root };
 };
 
@@ -65,12 +68,11 @@ it("focus returns to the explicit opener, even when nothing was focused at mount
   (document.activeElement as HTMLElement | null)?.blur(); // a finger never focuses the button it presses
   expect(document.activeElement).toBe(document.body);
   const ref = { current: opener };
-  const { el, root } = await mount({ returnFocusTo: ref });
+  const { root } = await mount({ returnFocusTo: ref });
   // The sheet takes focus for itself on mount.
   expect(document.activeElement).not.toBe(opener);
   await act(async () => { root.unmount(); });
   expect(document.activeElement).toBe(opener);
-  void el;
 });
 
 it("without an explicit opener, focus returns to what was focused at mount", async () => {
