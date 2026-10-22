@@ -530,6 +530,7 @@ Run per city at P2 after 04's bloc macro step. Inputs from 04: bloc GDP growth `
 
 1. **Jobs.** `jobs_c = Σ_sector jobsBySector_c`. Each sector's facilities map to a **jobs** use class **per facility**, by the table below (E-82). The table is the **jobs** map: its four values are OFFICE, RETAIL, INDUSTRIAL and HOSPITALITY (§2.9). A parcel's **site** use is a different map — §3.6.2's property-type column plus §3.19.4's zoning — and `DATACENTER` is a site use only (see the `DATACENTER` bullet below). Jobs come from 09 (every player and named business reports `staff` and its `cityId`) plus 16's aggregate `frm` sector employment for the city, which 16 sizes so the city's employment rate starts at `1 − u_b`. Apply `EmploymentDelta`s whose `effectiveTick` has passed.
    - **The use-class map is per FACILITY, not per sector (E-82).** A sector's use class is the **set** of use classes its facilities carry, and a facility's use class is fixed by the table below. `jobsBySector` is keyed by **market sector** (06 `SectorId`), so a sector that spans two use classes contributes its jobs to **both** use classes' demand (`demandArea_{d,OFFICE}` and `demandArea_{d,RETAIL}` in §3.4.2); the split within the sector is by the facility the employment is reported against. `EmploymentDelta.use` names the use class of the **specific facility** the delta is about, not of the sector.
+   - **How a facility's jobs use class is derived (E-82).** From the facility's **own business archetype** in 09 §3.1.4 / 22 §6.2 — never from its sector, its lot type or its district: **R1** `FOOTFALL_RETAIL` and `LOCAL_SERVICE` → RETAIL (customer-facing premises whose staff follow hourly revenue, 22 §6.1); **R2** `PROCESSOR`, `TRANSPORT`, `UTILITY` and the yard / depot / terminal / plant facilities → INDUSTRIAL (production, storage, movement); **R3** `B2B_CONTRACT`, `SUBSCRIPTION`, `PLATFORM_COMMISSION`, `COMPUTE`, and professional-service premises with no shop floor → OFFICE; **R4** a `TOURISM` archetype whose spec-named property type is `HOTEL` → HOSPITALITY (`fh_hotel` is its only carrier); **R5** a facility whose archetype leaves the jobs use undetermined (`tech_datacenter`, `tech_campus`, `hl_hospital`) takes the use of the work its staff do → OFFICE. **R6 — the lot type does not decide the jobs use.** A facility's jobs use may differ from its parcel's **site** use (§3.6.2, §3.19.4), and it does for four facilities: `rc_big_box` RETAIL on a `WAREHOUSE` site (INDUSTRIAL), `re_agency` OFFICE on a `SHOPFRONT` site (RETAIL), `lx_atelier` INDUSTRIAL on a `ROW` site (RES) and `tech_datacenter` OFFICE on a `DC_SITE` (DATACENTER). Which use classes exist in a district remains zoning's question (see the zoning bullet below).
 
    | Sector | Facility | Jobs use class |
    |---|---|---|
@@ -552,7 +553,8 @@ Run per city at P2 after 04's bloc macro step. Inputs from 04: bloc GDP growth `
    | | `me_venue` | RETAIL |
    | HEALTH | `hl_hospital`, `hl_lab` | OFFICE |
    | | `hl_clinic` | RETAIL |
-   | LUXURY | `lx_boutique`, `lx_flagship`, `lx_atelier` | RETAIL |
+   | LUXURY | `lx_boutique`, `lx_flagship` | RETAIL |
+   | | `lx_atelier` | INDUSTRIAL |
    | SECURITY_LEGAL_INTEL | `sl_law_firm`, `sl_cyber` | OFFICE |
    | | `sl_guard_depot` | INDUSTRIAL |
 
