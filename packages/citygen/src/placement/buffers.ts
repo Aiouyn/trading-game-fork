@@ -343,6 +343,10 @@ export const nuisanceOf = (facility: string): Nuisance => {
  * the card's buffers constrain a new receptor next to an existing facility exactly as they
  * constrain a new facility next to an existing receptor.
  *
+ * The RECEPTORS are the region's receptor PARCELS, not only the assigned ones: a housing estate
+ * is a receptor whether or not it carries a sector facility, and a receptor created after
+ * genesis is covered the same way (card "Buffers", INV-PLC-2).
+ *
  * N0 and N1 never violate: their buffer is 0 m.
  */
 export function bufferViolations(
@@ -356,17 +360,15 @@ export function bufferViolations(
     if (!fac) continue;
     const need = bufferCm(nuisanceOf(a.facility));
     if (need <= 0) continue;
-    for (const r of assigned) {
-      if (r.parcelId === a.parcelId) continue;
-      const rec = findById(byId, r.parcelId);
-      if (!rec) continue;
+    for (const rec of parcels) {
+      if (rec.id === a.parcelId) continue;
       // A hospital is not a nuisance to another hospital.
       if (!isReceptorFor(rec, a.facility)) continue;
       const d = edgeDistanceCm(fac.polygon, rec.polygon);
       if (d < need) {
         out.push({
           facilityParcel: a.parcelId,
-          receptorParcel: r.parcelId,
+          receptorParcel: rec.id,
           distCm: d,
           needCm: need,
         });

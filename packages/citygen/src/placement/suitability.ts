@@ -209,8 +209,11 @@ export function lotTypeRank(rule: FacilityRule, lot: string): number {
  *
  * Two symmetric conditions (card "Buffers", "the buffers are symmetric"):
  *   1. the parcel is a RECEPTOR and it lies inside the buffer of an already-placed facility;
- *   2. the facility is N2 or N3 and the parcel lies inside the buffer of an already-placed
- *      receptor.
+ *   2. the facility is N2 or N3 and an existing RECEPTOR lies inside the facility's own buffer.
+ *
+ * The receptors are the region's receptor PARCELS: a housing estate is a receptor whether or not
+ * it carries a sector facility, and a receptor created after genesis is covered the same way
+ * (INV-PLC-2).
  *
  * The distances come from the caller's context, because the buffer geometry belongs to the
  * generator that owns the polygons; the caller reports the exact edge distance in centimetres.
@@ -233,9 +236,9 @@ function bufferFails(p: PlacementParcel, ctx: PlacementCtx, rule: FacilityRule):
   }
 
   // 2. The facility is a heavy one next to an existing receptor.
-  for (const a of assigned) {
-    if (!ctx.receptorParcelIds.includes(a.parcelId)) continue;
-    const d = ctx.bufferDistanceCm(p.id, a.parcelId);
+  for (const receptorId of ctx.receptorParcelIds) {
+    if (receptorId === p.id) continue;
+    const d = ctx.bufferDistanceCm(p.id, receptorId);
     if (d !== null && d < need) return true;
   }
   return false;

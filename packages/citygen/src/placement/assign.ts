@@ -9,6 +9,22 @@
 // `Math.random`, `Date` or float in a discrete decision, and draws are quantised the way
 // 10 §3.19.1 requires."
 //
+// THE LOOP IS OVER PARCELS, NOT OVER FACILITIES (City Dev, T10A-12 U5). The card's step 5 says
+// "process districts in districtId order and parcels in pcl_ sequence order", and a city has many
+// parcels and few facility classes. A loop over facility classes would place at most one of each
+// class per district, which no real city has: a district has several shops, several cafes. The
+// loop is therefore:
+//
+//   for each district, in districtId order:
+//     for each parcel, in pcl_ sequence order:
+//       for each facility class, the anchors first, then the rest in facility-id order:
+//         score the parcel for that facility; if it is allowed and its score beats the best so
+//         far, keep it as the parcel's facility
+//       place the winner
+//
+// A facility may be placed on as many parcels as the rules allow, and the cardinality limits
+// ("at most 1 exchange per city", "one fh_restaurant per district") are enforced as hard caps.
+//
 // INV-PLC-3 (determinism): `assignSectors(region, draw)` is a pure function. The same region rows
 // and the same stream give byte-identical canonical output, and the draws come only from
 // `city.gen:<cityId>:<regionId>:sector`.
@@ -24,6 +40,7 @@ import type {
   DistrictRole,
   Draw,
   PlacementAssignment,
+  PlacementCtx,
   PlacementParcel,
   RegionInput,
   Suitability,
@@ -54,19 +71,18 @@ export interface AssignmentTrace {
   tiedSets: number;
 }
 
+/** The counters the cardinality limits read. */
+interface Counters {
+  /** How many of each facility class are placed, in the whole region. */
+  perFacility: Record<string, number>;
+  /** How many of each facility class are placed, per district. */
+  perFacilityInDistrict: Record<string, number>;
+  /** How many of each facility class are placed, per district role. */
+  perFacilityInRole: Record<string, number>;
+}
+
 /**
  * The assignments of a region, deterministic in the region rows and the injected draw.
- *
- * The order of the work is fixed by the card:
- *   1. the DISTRICTS, in `districtId` order, and within a district the parcels, in `pcl_`
- *      sequence order;
- *   2. the anchor facilities first (the exchange, the port terminal, the tank farm, the plants,
- *      the hospital, the data centre), because they are the facilities with no second choice;
- *   3. then the remaining facilities, in facility-id order.
- *
- * Within each step, the winner is the argmax of `score + mix deficit`. Ties are broken by
- * exactly ONE draw from the injected stream: the candidates are sorted, and the index is
- * `floor(draw * n)`.
  */
 export function assignSectors(region: RegionInput, draw: Draw): readonly PlacementAssignment[] {
   return assignSectorsTraced(region, draw).assignments;
@@ -87,8 +103,7 @@ export function assignSectorsTraced(region: RegionInput, draw: Draw): Assignment
   const groupOf = (districtId: string): PlacementParcel[] =>
     parcelsSorted.filter((p) => p.districtId === districtId);
 
-  // The facilities in the order they are placed: the anchors first, then the rest, both by
-  // facility id.
+  // The facility classes, the anchors first and then the rest, both by facility id.
   const anchors = ANCHOR_FACILITIES.filter((f) => FACILITY_RULES.some((r) => r.facility === f));
   const rest = sortBy(
     FACILITY_RULES.map((r) => r.facility).filter((f) => !anchors.includes(f)),
@@ -96,33 +111,59 @@ export function assignSectorsTraced(region: RegionInput, draw: Draw): Assignment
   );
   const order = [...anchors, ...rest];
 
-  for (const facility of order) {
-    const rule = facilityRule(facility);
-    if (!rule) continue;
-    for (const district of districts) {
-      const role = region.roles[district.id];
-      if (!role) continue;
-      const parcels = groupOf(district.id);
-      if (parcels.length === 0) continue;
+  // The cardinality counters.
+  const counters: Counters = { perFacility: {}, perFacilityInDistrict: {}, perFacilityInRole: {} };
+  const count = (bag: Record<string, number>, key: string): number => {
+    const n = bag[key] ?? 0;
+    bag[key] = n + 1;
+    return n;
+  };
 
+  for (const district of districts) {
+    const role = region.roles[district.id];
+    if (!role) continue;
+    const parcels = groupOf(district.id);
+    if (parcels.length === 0) continue;
+
+    for (const p of parcels) {
+      if (!isAssignable(p)) continue;
+
+      // The context grows as the run places facilities: "Each placed N2/N3 facility updates the
+      // receptor exclusion and each receptor updates the facility exclusion, so the output is
+      // buffer-clean by construction" (card step 5).
+      const stepCtx: PlacementCtx = { ...ctx, placedFacilities: assigned };
+
+      // The candidates for THIS parcel: every facility class the parcel may take, scored.
       const candidates: Suitability[] = [];
-      for (const p of parcels) {
-        if (!isAssignable(p)) continue;
-        if (assigned.some((a) => a.parcelId === p.id)) continue;
-        const v = verdict(p, role, ctx, rule);
+      for (const facility of order) {
+        const rule = facilityRule(facility);
+        if (!rule) continue;
+        if (exceedsCap(counters, rule.facility, role, district.id)) continue;
+        const v = verdict(p, role, stepCtx, rule);
         if (v.verdict === 'EXCLUDED') continue;
         candidates.push(v);
       }
       if (candidates.length === 0) continue;
 
       // The mix deficit: how far the district's sector share is BELOW its target, in per-mille.
-      const deficit = mixDeficit(role, assigned, district.id, rule.sector);
+      // It is a property of the SECTOR, so it is the same for every candidate of one sector and
+      // it is what steers the sector choice.
+      const deficits: Record<string, number> = {};
+      for (const c of candidates) {
+        const rule = facilityRule(c.facility);
+        if (!rule) continue;
+        if (deficits[rule.sector] === undefined) {
+          deficits[rule.sector] = mixDeficit(role, assigned, district.id, rule.sector);
+        }
+      }
 
       // The argmax of score + deficit, with ONE draw per tied set.
       let best = -1;
       const tied: Suitability[] = [];
       for (const c of candidates) {
-        const value = c.score + deficit;
+        const rule = facilityRule(c.facility);
+        if (!rule) continue;
+        const value = c.score + (deficits[rule.sector] ?? 0);
         if (value > best) {
           best = value;
           tied.length = 0;
@@ -135,7 +176,7 @@ export function assignSectorsTraced(region: RegionInput, draw: Draw): Assignment
       if (tied.length > 1) {
         tiedSets += 1;
         // The candidates are sorted, and the index is floor(draw * n) (card step 5).
-        const sorted = sortBy(tied, (c) => [c.parcelId]);
+        const sorted = sortBy(tied, (c) => [c.facility]);
         const d = draw();
         draws += 1;
         const n = sorted.length;
@@ -143,16 +184,45 @@ export function assignSectorsTraced(region: RegionInput, draw: Draw): Assignment
         chosen = sorted[idx]!;
       }
 
-      const parcel = parcels.find((p) => p.id === chosen.parcelId);
-      if (!parcel) continue;
+      const rule = facilityRule(chosen.facility);
+      if (!rule) continue;
+      count(counters.perFacility, rule.facility);
+      count(counters.perFacilityInDistrict, `${district.id}|${rule.facility}`);
+      count(counters.perFacilityInRole, `${role}|${rule.facility}`);
       assigned.push(
-        assignmentOf(region, parcel, rule.facility, rule.sector, rule.styleKey, rule.densityBand),
+        assignmentOf(region, p, rule.facility, rule.sector, rule.styleKey, rule.densityBand),
       );
     }
   }
 
   const out = sortBy(assigned, (a) => [a.parcelId]);
   return { assignments: out, draws, tiedSets };
+}
+
+/**
+ * True when a facility has reached one of its cardinality limits.
+ *
+ * The card's two limits: "at most 1 exchange per city" and "nothing in TROPHY_RES except one
+ * fh_restaurant per district".
+ */
+function exceedsCap(
+  counters: Counters,
+  facility: string,
+  role: DistrictRole,
+  districtId: string,
+): boolean {
+  const rule = facilityRule(facility);
+  const cap = rule?.maxPer;
+  if (!cap) return false;
+  const inCity = counters.perFacility[facility] ?? 0;
+  if (cap.perCity !== undefined && inCity >= cap.perCity) return true;
+  const inDistrict = counters.perFacilityInDistrict[`${districtId}|${facility}`] ?? 0;
+  if (cap.perDistrict !== undefined && inDistrict >= cap.perDistrict) return true;
+  const inRole = cap.perDistrictRole?.[role];
+  if (inRole !== undefined && (counters.perFacilityInRole[`${role}|${facility}`] ?? 0) >= inRole) {
+    return true;
+  }
+  return false;
 }
 
 /**

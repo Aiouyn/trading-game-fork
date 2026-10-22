@@ -127,7 +127,11 @@ const parcel = (over: Partial<PlacementParcel> & { id: string }): PlacementParce
 
 /** The zoning class of a fixture parcel. */
 const withClass = (cls: ZoningClass, over: Partial<PlacementParcel> = {}): PlacementParcel =>
-  parcel({ zoning: { class: cls, allowed: ['RETAIL'], maxHeightM: 12, maxFar: 1.5, heritageLocked: false }, ...over });
+  parcel({
+    id: 'pcl_1',
+    zoning: { class: cls, allowed: ['RETAIL'], maxHeightM: 12, maxFar: 1.5, heritageLocked: false },
+    ...over,
+  });
 
 // ---------- the role derivation ----------
 
@@ -284,7 +288,7 @@ describe('T10A-12 classify: the lot type', () => {
   it('AC-10A-12-LOT: reservedFor parcels are never assignable', () => {
     const reserved: ReservedFor[] = ['CROWN', 'LANDMARK', 'HALL_OF_PATRONS', 'CIVIC', 'CORRIDOR'];
     for (const r of reserved) {
-      expect(isAssignable(parcel({ id: 'pcl_1', reservedFor: r })), r).toBe(false);
+      expect(isAssignable(parcel({ id: 'pcl_1', reservedFor: r })), String(r)).toBe(false);
     }
     expect(isAssignable(parcel({ id: 'pcl_1', reservedFor: null }))).toBe(true);
   });

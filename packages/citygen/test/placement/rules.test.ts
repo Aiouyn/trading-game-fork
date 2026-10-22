@@ -176,7 +176,7 @@ function checkTableRows(rules: readonly FacilityRule[]): Problem[] {
   const boutique = byFacility('lx_boutique');
   if (!boutique) out.push('AC-10A-12-TABLE-ROWS: no lx_boutique rule');
   else {
-    for (const role of ['INDUSTRIAL', 'PORT', 'TRANSIT_HUB']) {
+    for (const role of ['INDUSTRIAL', 'PORT', 'TRANSIT_HUB'] as const) {
       if (!boutique.excludeRoles.includes(role)) {
         out.push(`AC-10A-12-TABLE-ROWS: lx_boutique does not exclude ${role}`);
       }
