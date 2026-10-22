@@ -242,8 +242,15 @@ test("Studio #7: the stacked segment and the full Appearance pane have visual pr
   await s.fill("1.5"); await s.blur();
   const seg = page.getByTestId("seg-reducedMotion");
   await expect(seg).toHaveAttribute("data-stacked", "scale");
-  // The whole control, not a tiny crop: the two segments and both rules.
-  await seg.screenshot({ path: `${SHOTS}/segment-stacked-scale1.5-1440x900.png` });
+  if (isPhone(info)) {
+    // B-2: on the phone the stacked rows are full-bleed (358 px) and 44 px tall under pointer:coarse,
+    // so the width, the 6 px radius and the hairline separators need a PAGE shot, not an element crop.
+    await seg.evaluate((e) => e.scrollIntoView({ block: "center", inline: "center" }));
+    await page.screenshot({ path: `${SHOTS}/segment-stacked-scale1.5-390x844.png` });
+  } else {
+    // The whole control, not a tiny crop: the two segments and both rules.
+    await seg.screenshot({ path: `${SHOTS}/segment-stacked-scale1.5-1440x900.png` });
+  }
   // The stacked segment: every row is a full-width bar at least 28 px tall, and exactly one carries
   // the --fg selection marker. The 6 px radius belongs to the control (the container), as in the
   // horizontal case: the container clips the corners.
@@ -281,10 +288,16 @@ test("S1-14: About in-app (S2-01..07)", async ({ page, context }, info) => {
   await expect(about).toBeVisible();
   if (isPhone(info)) await expect(page.locator("#phone-app-title")).toHaveText("About");
   const version = (await page.getByTestId("about-version").textContent())!;
-  // The e2e build is from this checkout, so the built bundle carries the real HEAD sha (Producer ruling (a)).
-  const sha = execSync("git rev-parse --short=7 HEAD").toString().trim();
+  // B-1 (PR #7 ruling): the e2e build stamps a DETERMINISTIC build identifier (playwright.config
+  // webServer env), because a committed screenshot can only ever carry its parent commit's SHA. This
+  // still proves the env-to-screen plumbing, which is the half the unit test does not cover.
+  const buildId = process.env.NEXT_PUBLIC_BUILD_SHA ?? execSync("git rev-parse --short=7 HEAD").toString().trim();
   const pkgVersion = JSON.parse(readFileSync("package.json", "utf8")).version;
-  expect(version).toBe(`${pkgVersion} (build ${sha})`);
+  expect(version).toBe(`${pkgVersion} (build ${buildId})`);
+  // The invariant, not just the value: a committed screenshot must never carry a real short SHA. If both
+  // pin sites are ever removed, buildId falls back to git, the line above still passes, and the PNGs go
+  // stale again silently (PR #7 B-1, third round).
+  expect(version).not.toMatch(/\(build [0-9a-f]{7}\)/);
   await expect(about.getByTestId("about-licence-row")).toHaveCount(5);
   await expect(about.getByRole("link", { name: /Charts by TradingView/ })).toHaveAttribute("href", "https://www.tradingview.com");
   for (const a of await about.locator("a[target]").all()) {

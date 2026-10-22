@@ -33,13 +33,20 @@ describe("17B S2 About", () => {
     expect(mount().querySelector("[data-testid=about-version]")!.textContent).toBe("0.1.0 (build dev)");
   });
 
-  it("S2-01: next.config injects package.json version and `git rev-parse --short=7 HEAD`, else dev", async () => {
+  it("S2-01: next.config injects package.json version and `git rev-parse --short=7 HEAD`, or the env pin", async () => {
     const { execSync } = await import("node:child_process");
     const env = (await import("../../../next.config")).default.env!;
     const pkg = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8"));
     expect(env.NEXT_PUBLIC_RELEASE).toBe(pkg.version);
+    // No pin: the real short commit, in sha7 shape (Producer ruling (a)).
     expect(env.NEXT_PUBLIC_BUILD_SHA).toBe(execSync("git rev-parse --short=7 HEAD").toString().trim());
     expect(env.NEXT_PUBLIC_BUILD_SHA).toMatch(/^[0-9a-f]{7}$/);
+    // PR #7 B-1: the e2e job pins a deterministic token, because a committed screenshot can only ever
+    // carry its parent commit's SHA. A pin wins; the git path above stays the fallback.
+    vi.stubEnv("NEXT_PUBLIC_BUILD_SHA", "e2e-fixture");
+    vi.resetModules();
+    const pinned = (await import("../../../next.config")).default.env!;
+    expect(pinned.NEXT_PUBLIC_BUILD_SHA).toBe("e2e-fixture");
   });
 
   it("S2-02: licence rows, verified against node_modules package.json", () => {

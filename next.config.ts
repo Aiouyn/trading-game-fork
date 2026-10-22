@@ -29,7 +29,10 @@ const nextConfig: NextConfig = {
   // Only the e2e build (playwright.config webServer env) sets them to "1".
   env: {
     NEXT_PUBLIC_RELEASE: pkg.version,
-    NEXT_PUBLIC_BUILD_SHA: buildSha(),
+    // A pin from the environment wins (PR #7 B-1 ruling: a committed screenshot can only ever carry
+    // the parent commit's SHA, so the e2e job pins a deterministic token). A real build has no pin and
+    // still gets the real short commit; buildSha() itself is unchanged.
+    NEXT_PUBLIC_BUILD_SHA: process.env.NEXT_PUBLIC_BUILD_SHA || buildSha(),
     QUAY_DS: process.env.QUAY_DS === "1" ? "1" : "0",
     // City e2e hook (window.__city): on only in the e2e build (vite harness / NEXT_PUBLIC_CITY_E2E=1).
     NEXT_PUBLIC_CITY_E2E: process.env.NEXT_PUBLIC_CITY_E2E === "1" ? "1" : "0",
