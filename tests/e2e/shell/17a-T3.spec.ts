@@ -170,6 +170,108 @@ test("T3-05 phase change cross-fades the label over --dur-base (0 under reduced 
   expect(await page.evaluate(() => getComputedStyle(document.querySelector(".mp-in")!).animationDuration)).toBe("0s");
 });
 
+/**
+ * The first paint of the phase label is opaque: there is nothing to fade from, so no fade runs.
+ *
+ * Why: the label is --fg-muted on the strip, and a label at partial opacity blends into the
+ * background and drops under the 4.5:1 text floor (4.34:1 at 73% opacity). axe reports that as a
+ * serious color-contrast violation, and the axe checks (S1-19, C4) sample the page at an arbitrary
+ * moment, so they caught the label mid-fade on the boot paint. That was the S1-19 flake.
+ *
+ * The cross-fade itself is unchanged: it only runs when a label replaces another one.
+ */
+test("T3-05 the first paint of the phase label is opaque; the cross-fade only runs on a change", async ({ page }, info) => {
+  desktopOnly(info.project.name);
+  await boot(page, "/");
+  const first = await page.getByTestId("phase-label").evaluate((el) => ({
+    opacity: getComputedStyle(el).opacity,
+    animation: getComputedStyle(el).animationName,
+    cls: el.className,
+  }));
+  expect(first).toEqual({ opacity: "1", animation: "none", cls: "mp-text" });
+
+  // A change still cross-fades: the incoming label fades in over --dur-base.
+  await bootPaused(page, `/?tick=${DAY + 284}`);
+  await page.clock.runFor(5000);
+  await expect(page.getByTestId("phase-label")).toHaveText("Market open · Port Avalon");
+  const changed = await page.getByTestId("phase-label").evaluate((el) => ({
+    cls: el.className,
+    duration: getComputedStyle(el).animationDuration,
+  }));
+  expect(changed.cls).toBe("mp-text mp-in");
+  expect(changed.duration).toBe("0.22s");
+});
+
+/**
+ * The cross-fade never dips below the 4.5:1 text floor, in any of the four palettes.
+ *
+ * Why: the phase label is --fg-muted on the strip. A label at partial opacity blends into the strip
+ * and drops under the floor (broadsheet needs opacity >= 0.921), so the cross-fade used to expose the
+ * label to a serious axe color-contrast violation for the first ~50 ms of every phase change — the
+ * sibling of the S1-19 first-paint flake that PR #13 fixed. The fade now starts at --mp-fade-start
+ * (0.93), so it still animates but never goes under the floor.
+ *
+ * The animation is frozen with the Web Animations API at points across the fade, and the composited
+ * label colour is measured against the strip. This FAILS on a fade from 0 (broadsheet reads 1.00:1
+ * at t=0) and PASSES with the fade starting at --mp-fade-start.
+ */
+test("T3-05b the cross-fade never drops below the 4.5:1 text floor, in all four palettes", async ({ page }, info) => {
+  desktopOnly(info.project.name);
+  await bootPaused(page, `/?tick=${DAY + 284}`);
+  await expect(page.getByTestId("phase-label")).toHaveText("Pre-market · Port Avalon");
+  await page.clock.runFor(5000);
+  await expect(page.getByTestId("phase-label")).toHaveText("Market open · Port Avalon");
+
+  // The fade is still a fade: it animates over --dur-base and ends opaque.
+  const anim = await page.getByTestId("phase-label").evaluate((el) => {
+    const a = (el.getAnimations() as (Animation & { animationName?: string })[]).find((x) => x.animationName === "mp-fade-in");
+    return a ? { name: a.animationName, dur: getComputedStyle(el).animationDuration } : null;
+  });
+  expect(anim, "the cross-fade still animates").not.toBeNull();
+  expect(anim!.dur).toBe("0.22s");
+
+  // Freeze the fade across its whole duration and measure the composited label against the strip.
+  for (const palette of PALETTES) {
+    await page.evaluate((p) => { document.documentElement.dataset.palette = p; }, palette);
+    const worst = await page.evaluate((times) => {
+      const el = document.querySelector("[data-testid=phase-label]") as HTMLElement;
+      const readVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const toRgb = (v: string) => {
+        const d = document.createElement("i");
+        d.style.color = v; document.body.append(d);
+        const c = getComputedStyle(d).color; d.remove();
+        const n = c.match(/[\d.]+/g)!.map(Number);
+        return [n[0], n[1], n[2]];
+      };
+      const over = (fg: number[], bg: number[], a: number) => fg.map((v, i) => v * a + bg[i] * (1 - a));
+      const lum = (rgb: number[]) => {
+        const c = rgb.map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      };
+      const ratio = (x: number[], y: number[]) => { const [p1, p2] = [lum(x), lum(y)].sort((m, n) => n - m); return (p1 + 0.05) / (p2 + 0.05); };
+      // The strip surface: --chrome-translucent = 94% --chrome over --bg0.
+      const strip = over(toRgb(readVar("--chrome")), toRgb(readVar("--bg0")), 0.94);
+      const fgMuted = toRgb(readVar("--fg-muted"));
+      let min = Infinity;
+      let at = 0;
+      for (const ms of times) {
+        const a = (el.getAnimations() as (Animation & { animationName?: string })[]).find((x) => x.animationName === "mp-fade-in");
+        if (!a) return { err: "no animation" };
+        a.pause();
+        a.currentTime = ms;
+        const o = parseFloat(getComputedStyle(el).opacity);
+        const r = ratio(over(fgMuted, strip, o), strip);
+        if (r < min) { min = r; at = ms; }
+      }
+      return { min, at };
+    }, [0, 5, 10, 20, 30, 40, 50, 60, 80, 100, 120, 160, 220]);
+    expect((worst as { err?: string }).err).toBeUndefined();
+    // The floor is 4.5:1 (17 §3.3.1). Broadsheet is the binding palette: it needs >= 0.921 opacity.
+    expect((worst as { min: number }).min, `${palette} at t=${(worst as { at: number }).at}ms`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+
 test("T3-06 nothing flashes more than once per second (opacity sampled per frame for 10 s)", async ({ page }, info) => {
   desktopOnly(info.project.name);
   await boot(page, "/");

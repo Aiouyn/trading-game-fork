@@ -3,6 +3,15 @@
 // exceptions (Producer).
 
 export const OWNED = [/^src\/city\//, /^public\/city\//, /^tests\/unit\/city\//, /^tests\/e2e\/city\//, /^docs\/city\//];
+/**
+ * T10A-13 (Producer ruling, 2026-10-21): City Dev owns `packages/content/data/district-flags.json`
+ * and its schema test. Exactly those two files, matched exactly - `packages/content/**` stays
+ * outside City Dev's scope, so every other content file still trips the check.
+ */
+export const OWNED_CONTENT: readonly string[] = [
+  'packages/content/data/district-flags.json',
+  'packages/content/src/district-flags.test.ts',
+];
 // next.config.ts: the NEXT_PUBLIC_CITY_E2E define (Producer-authorized, prod hook leak).
 export const APPROVED_EXCEPTIONS = new Set(['package.json', 'package-lock.json', '.github/workflows/city.yml', 'next.config.ts']);
 
@@ -17,7 +26,8 @@ export type C16Verdict =
 export function c16Verdict(branch: string | null, changed: readonly string[]): C16Verdict {
   if (!branch) return { status: 'skip', reason: 'C-16: branch unknown (no GITHUB_HEAD_REF, GITHUB_REF_NAME or git branch)' };
   if (!isCityBranch(branch)) return { status: 'skip', reason: `C-16: '${branch}' is not a City Dev branch (v3/city-*, city/*); not checked` };
-  const outside = [...new Set(changed)].filter((p) => p && !APPROVED_EXCEPTIONS.has(p) && !OWNED.some((r) => r.test(p)));
+  const outside = [...new Set(changed)].filter((p) => p && !APPROVED_EXCEPTIONS.has(p)
+    && !OWNED_CONTENT.includes(p) && !OWNED.some((r) => r.test(p)));
   return outside.length ? { status: 'fail', outside } : { status: 'pass' };
 }
 

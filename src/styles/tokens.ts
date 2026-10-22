@@ -163,6 +163,7 @@ export const ROOT_TOKENS = {
   "z-system": "160",
   "chrome-translucent": "color-mix(in srgb, var(--chrome) 94%, transparent)",
   "btn-primary-style": "solid",
+  "mp-fade-start": "0.93",
   "focus-ring": "0 0 0 2px var(--bg0), 0 0 0 4px var(--acc)",
   "hit-touch": "44px",
   "hit-pointer": "28px",
