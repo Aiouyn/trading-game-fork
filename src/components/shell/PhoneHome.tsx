@@ -12,6 +12,7 @@ import { AppBody } from "./AppBody";
 import { Glyph } from "./Glyph";
 import { HaltChip } from "./SystemOverlays";
 import { MoneyText, PctText } from "./MoneyText";
+import { recentOpener } from "./recentOpener";
 import { useShell, useShellStore } from "./ShellContext";
 
 const BOTTOM: AppId[] = ["broker", "portfolio", "wire", "messages"];
@@ -175,7 +176,7 @@ function StatusBar() {
         pullY.current = null;
       }}
     >
-      <button className="quay-mark fg" data-testid="quay-mark" aria-label={S.home} onPointerDown={down} onPointerUp={up} onContextMenu={(e) => e.preventDefault()}>
+      <button className="quay-mark fg" data-testid="quay-mark" aria-label={S.home} ref={recentOpener} onPointerDown={down} onPointerUp={up} onContextMenu={(e) => e.preventDefault()}>
         <Glyph name="quay" size={20} />
       </button>
       <span className="num clock">{`D${day} · ${hhmm}`}</span>
