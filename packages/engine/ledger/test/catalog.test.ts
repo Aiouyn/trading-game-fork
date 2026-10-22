@@ -1,14 +1,50 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CBK_CREDIT_CODES, CBK_UNWIND_CODES, CLASS_TEMPLATES, FLOW_CLASSES, ReasonCatalog, type CodeRow } from '../src';
+import {
+  CBK_CREDIT_CODES, CBK_UNWIND_CODES, CLASS_TEMPLATES, FLOW_CLASSES, LEDGER_EXTENSION_CODES, ReasonCatalog, SPEC_COUNTS_03,
+  type CodeRow, type FlowClass,
+} from '../src';
+import { CATALOG_SEED } from '../src/catalog-data';
 
 const row = (code: string, cls: CodeRow['cls'], owner: number, t: CodeRow['allowedTemplates']): CodeRow =>
   ({ code, cls, owner, cf: 'OP', allowedTemplates: t, descriptionKey: code });
 
+const histogram = (classes: readonly FlowClass[]): Record<FlowClass, number> =>
+  Object.fromEntries(FLOW_CLASSES.map((k) => [k, classes.filter((c) => c === k).length])) as Record<FlowClass, number>;
+const sum = (h: Readonly<Record<FlowClass, number>>): number => FLOW_CLASSES.reduce((n, k) => n + h[k], 0);
+
+/** E-81 point 2: the canonical catalog.csv is the sole record of a row's `v3_source` (the spec table it came from). */
+const canonicalCatalog = (() => {
+  const text = readFileSync(new URL('../../../../export/ledger-ref/catalog.csv', import.meta.url), 'utf8');
+  const rows: string[][] = []; let line: string[] = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') quoted = false; else cell += c; }
+    else if (c === '"') quoted = true;
+    else if (c === ',') { line.push(cell); cell = ''; }
+    else if (c === '\n') { line.push(cell); rows.push(line); line = []; cell = ''; }
+    else if (c !== '\r') cell += c;
+  }
+  if (cell || line.length) { line.push(cell); rows.push(line); }
+  const [head, ...body] = rows;
+  return body.filter((r) => r.length > 1).map((r) => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ''])));
+})();
+const seedCodes = new Set(CATALOG_SEED.map((r) => r.code));
+
 describe('reason-code catalog (T03-02..05, INV-LED-002, Q-2)', () => {
   const cat = new ReasonCatalog();
-  it('live catalog: 397 seed codes (catalog v3, E-14) + 5 ledger extension codes (E-5) = 402; TRANSFER 221, REVALUE 30', () => {
-    expect(cat.countByClass()).toEqual({ FAUCET: 40, SINK: 86, TRANSFER: 221, CREDIT_CREATE: 12, CREDIT_DESTROY: 13, REVALUE: 30 });
-    expect(cat.all().length).toBe(402);
+  it('AC-03-ER81-COUNTS: the live histogram equals the histogram of the seed + the E-5 extension codes, never a literal', () => {
+    expect(cat.countByClass()).toEqual(histogram([...CATALOG_SEED.map((r) => r.cls), ...LEDGER_EXTENSION_CODES.map((r) => r.cls)]));
+    expect(cat.all().length).toBe(CATALOG_SEED.length + LEDGER_EXTENSION_CODES.length);
+  });
+  it('AC-03-ER81-COUNTS: the §3.4-origin subset is the pinned spec number, and the live total is that subset plus the registered rows', () => {
+    const origin = canonicalCatalog.filter((r) => seedCodes.has(r.code) && r.v3_source.startsWith('03-LEDGER-AND-ACCOUNTING.md'));
+    expect(histogram(origin.map((r) => r.class as FlowClass))).toEqual(SPEC_COUNTS_03);
+    const originCodes = new Set(origin.map((r) => r.code));
+    const registered = [...CATALOG_SEED.filter((r) => !originCodes.has(r.code)), ...LEDGER_EXTENSION_CODES];
+    const registeredLive = cat.all().filter((r) => !originCodes.has(r.code));
+    expect(cat.all().length).toBe(sum(SPEC_COUNTS_03) + registeredLive.length);
+    expect(registeredLive.length).toBe(registered.length);
   });
   it('03#1 / p10 books.ts port: every code has exactly one class and only templates of that class; no default class', () => {
     for (const r of cat.all()) {
