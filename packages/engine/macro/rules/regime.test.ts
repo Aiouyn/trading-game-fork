@@ -1,6 +1,7 @@
 // T04-03: the regime chain of 04 §3.3 (AC 04#5) and the Cycle Committee label of §3.3.6.
 // The statistical tests use a fixed seed, so they are deterministic: the measured numbers are reproducible run to run.
 import { describe, expect, it } from 'vitest';
+import { createParamsView } from '@tycoon/params';
 import { dmath, makeRng, seedStream, sha256Concat, u32be, xoNext, type ParamsView, type Rng } from '@tycoon/engine-core';
 import { ALLOWED, HAZARD_WEIGHTS, P_BASE, applyCoupling, forceRegime, regimeParams, stepRegime, transitionMultipliers, type RegimeParams } from './regime';
 import { cycleLabelStep } from './cycleCommittee';
@@ -13,6 +14,7 @@ const P: Record<string, number> = {
   macro_cycle_label_lag_days: 21,
 };
 const pv: ParamsView = {
+  ...createParamsView([]),
   num: (k) => { if (!(k in P)) throw new Error(`unknown param ${k}`); return P[k]!; },
   int: (k) => { if (!(k in P)) throw new Error(`unknown param ${k}`); return P[k]!; },
 };
@@ -61,7 +63,7 @@ describe('T04-03 base chain (04 §3.3.1)', () => {
   it('regimeParams reads the nine PARAM rows of §3.3.1', () => {
     expect(RP.meanDays).toEqual({ EXPANSION: 819, OVERHEATING: 273, CONTRACTION: 273, RECOVERY: 273 });
     expect(RP.minDays).toEqual({ EXPANSION: 182, OVERHEATING: 63, CONTRACTION: 91, RECOVERY: 91 });
-    expect(() => regimeParams({ num: () => Number.NaN, int: () => 0 })).toThrow(/macro_regime_mean_days_exp = NaN/);
+    expect(() => regimeParams({ ...createParamsView([]), num: () => Number.NaN, int: () => 0 })).toThrow(/macro_regime_mean_days_exp = NaN/);
   });
 });
 

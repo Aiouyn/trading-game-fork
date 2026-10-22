@@ -1,0 +1,845 @@
+{
+ "catalogVersion": 1,
+ "districts": [
+  {
+   "distId": "dst_port_avalon_eastside_docks",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_port_avalon_industrial_basin",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_port_avalon_old_harbor",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_port_avalon_riverside_lofts",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_port_avalon_midtown",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_port_avalon_financial_mile",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_port_avalon_glasshill",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_port_avalon_summit_estates_on_gilt_hill",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TROPHY_RES"
+  },
+  {
+   "distId": "dst_lakemont_rail_yards",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_lakemont_northshore",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_lakemont_campus_quarter",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_lakemont_old_town",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_lakemont_lakefront",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_lakemont_cedar_point",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_lakemont_the_bluffs",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TROPHY_RES"
+  },
+  {
+   "distId": "dst_redmesa_powerline_flats",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_redmesa_depot_district",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_redmesa_mesa_heights",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_redmesa_sunwell",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_redmesa_canyon_row",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_redmesa_central_plaza",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_redmesa_saguaro_hills",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_meridia_arsenal_yards",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_meridia_lido_strand",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_meridia_mainland_gate",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_meridia_business_district",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_meridia_san_telmo_islands",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_meridia_rialto_court",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_meridia_grand_canal",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "TROPHY_RES"
+  },
+  {
+   "distId": "dst_meridia_new_lagoon",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_valcourt_foundry_bank",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_valcourt_lock_quarter",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_valcourt_cathedral_rise",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_valcourt_atelier_row",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_valcourt_bourse_square",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_valcourt_southern_mills",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_valcourt_parkside",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_belmara_station_quarter",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_belmara_old_spa",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_belmara_lakeside_promenade",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_belmara_vineyard_slopes",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_belmara_pinecrest",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TROPHY_RES"
+  },
+  {
+   "distId": "dst_belmara_valley_works",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_kaiyo_harbor_freight",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_kaiyo_neon_ward",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_kaiyo_delta_markets",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_kaiyo_loop_central",
+   "port": false,
+   "station": true,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_kaiyo_reclaim_grid",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_kaiyo_shinbashi_heights",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TROPHY_RES"
+  },
+  {
+   "distId": "dst_kaiyo_riverbend",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_kaiyo_shiomi_docks",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_tessan_fab_island",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_tessan_delta_wharf",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_tessan_market_bridge",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_tessan_old_ward",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_tessan_tower_bund",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": true,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_tessan_hillgarden",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_tessan_canal_homes",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_mirako_terrace_steps",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_mirako_temple_hill",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_mirako_riverside_arcades",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_mirako_station_center",
+   "port": false,
+   "station": true,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_mirako_kiln_yard",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_mirako_maple_slopes",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_nordhaven_harbor_works",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_nordhaven_gamla_town",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_nordhaven_terrace_row",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_nordhaven_fjord_quarter",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_nordhaven_opera_quay",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_nordhaven_birch_hills",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_nordhaven_isle_mouth",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_skarvik_rig_yards",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_skarvik_herring_quay",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_skarvik_rockside",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_skarvik_harbor_exchange",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_skarvik_skerries",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_skarvik_northfield",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_vintra_turbine_valley",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_vintra_lakeside",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_vintra_old_mill",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_vintra_vintra_center",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_vintra_spruce_ridge",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_vintra_hydro_flats",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_sundara_sunset_strip",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_sundara_coastal_spine",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_sundara_hill_barrios",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_sundara_marina_quarter",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_sundara_palm_bay",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_sundara_ocean_towers",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_sundara_cliffside",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_cobreval_smelter_flats",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_cobreval_ore_docks",
+   "port": true,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PORT"
+  },
+  {
+   "distId": "dst_cobreval_old_town_hill",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_cobreval_plaza_mayor",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_cobreval_copper_terraces",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_cobreval_mirador",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_cobreval_riverside_colonia",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": true,
+   "role": "MIXED_RIVER"
+  },
+  {
+   "distId": "dst_alta_verde_market_valley",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_alta_verde_government_hill",
+   "port": false,
+   "station": false,
+   "cbd": true,
+   "riverOrCanal": false,
+   "role": "CBD"
+  },
+  {
+   "distId": "dst_alta_verde_colonial_center",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_alta_verde_coffee_slopes",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "MIXED_CORE"
+  },
+  {
+   "distId": "dst_alta_verde_highland_park",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "PRIME_RES"
+  },
+  {
+   "distId": "dst_alta_verde_southern_ring",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "INDUSTRIAL"
+  },
+  {
+   "distId": "dst_alta_verde_university_mesa",
+   "port": false,
+   "station": true,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TRANSIT_HUB"
+  },
+  {
+   "distId": "dst_isla_serena_the_cays",
+   "port": false,
+   "station": false,
+   "cbd": false,
+   "riverOrCanal": false,
+   "role": "TROPHY_RES"
+  }
+ ]
+}
