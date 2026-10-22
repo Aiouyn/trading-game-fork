@@ -62,7 +62,9 @@ export interface LedgerApi {
 }
 export interface HoldApi {
   placeCash(owner: Id, ccy: Ccy, amt: Money, expiresTick: Tick, ref: Id): Id | Reject;
-  placeCashFor(owner: Id, ccy: Ccy, amt: Money, expiresTick: Tick, ref: Id, purposeCode: string): Id | Reject;
+  /** E-79 point 4: `crossPartition` is the optional 7th parameter and sets the hold row's flag (INV-BS-012 reads it). */
+  placeCashFor(owner: Id, ccy: Ccy, amt: Money, expiresTick: Tick, ref: Id, purposeCode: string,
+    opts?: { crossPartition?: boolean }): Id | Reject;
   placeQty(owner: Id, assetId: Id, qty: Qty, expiresTick: Tick, ref: Id): Id | Reject;
   release(holdId: Id): void; reduce(holdId: Id, byAmount: bigint): void; get(holdId: Id): Hold | undefined;
 }
@@ -374,13 +376,13 @@ export class LedgerWorld {
       },
     };
     const holds: HoldApi = {
-      placeCash: (o, c, a, x, r) => this.placeCash(o, c, a, x, r, undefined),
-      placeCashFor: (o, c, a, x, r, p) => this.placeCash(o, c, a, x, r, p),
+      placeCash: (o, c, a, x, r) => this.placeCash(o, c, a, x, r, undefined, false),
+      placeCashFor: (o, c, a, x, r, p, o2) => this.placeCash(o, c, a, x, r, p, o2?.crossPartition === true),
       placeQty: (o, as, qt, x, r) => {
         if (x < this.s.tick) return { code: 'LED_BAD_EXPIRY' };
         if (!this.entity(o)) return { code: 'LED_UNKNOWN_ENTITY' };
         if (qt <= 0n || this.availableQty(o, as) < qt) return { code: 'LED_INSUFFICIENT_QTY' };
-        return this.newHold({ owner: o, kind: 'QTY', assetId: as, amount: qt, parts: [], expiresTick: x, ref: r });
+        return this.newHold({ owner: o, kind: 'QTY', assetId: as, amount: qt, parts: [], expiresTick: x, ref: r, crossPartition: false });
       },
       release: (id) => { const h = this.s.holds.get(id); if (h && h.status === 'ACTIVE') h.status = 'RELEASED'; },
       reduce: (id, by) => {
@@ -399,7 +401,8 @@ export class LedgerWorld {
     return holdId;
   }
   /** Holds reserve every amount that could fail at P13 (03 §3.3.2 rule 5); restricted lots only for restrictedOk purposes (03#32). */
-  private placeCash(owner: Id, ccy: Ccy, amt: Money, expiresTick: Tick, ref: Id, purpose: string | undefined): Id | Reject {
+  private placeCash(owner: Id, ccy: Ccy, amt: Money, expiresTick: Tick, ref: Id, purpose: string | undefined,
+    crossPartition = false): Id | Reject {
     const e = this.entity(owner);
     if (!e) return { code: 'LED_UNKNOWN_ENTITY' };
     if (expiresTick < this.s.tick) return { code: 'LED_BAD_EXPIRY' };
@@ -413,7 +416,7 @@ export class LedgerWorld {
     let left = amt;
     for (const s of sources) { const a = s.avail < left ? s.avail : left; if (a > 0n) { parts.push({ accountKey: s.accountKey, amount: a, remaining: a }); left -= a; } }
     if (left > 0n) return !ok && amt <= main.avail + restrictedTotal ? { code: 'LED_RESTRICTED_FUNDS' } : { code: 'LED_INSUFFICIENT_FUNDS' };
-    return this.newHold({ owner, kind: 'CASH', ccy, amount: amt, parts, expiresTick, ref, ...(purpose ? { purposeCode: purpose } : {}) });
+    return this.newHold({ owner, kind: 'CASH', ccy, amount: amt, parts, expiresTick, ref, crossPartition, ...(purpose ? { purposeCode: purpose } : {}) });
   }
 
   // ───────── P13 ─────────
