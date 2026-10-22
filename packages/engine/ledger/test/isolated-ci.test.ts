@@ -13,9 +13,11 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 
-const LEDGER = 'C:/Users/Mathis/port-avonlon/wt-engine-dev/packages/engine/ledger';
+/** The ledger package directory: <repo>/packages/engine/ledger (this test lives in <ledger>/test). */
+const LEDGER = fileURLToPath(new URL('..', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'avalon-isolated-'));
 afterAll(() => { rmSync(tmp, { recursive: true, force: true }); });
 

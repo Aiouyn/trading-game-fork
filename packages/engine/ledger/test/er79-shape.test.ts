@@ -8,15 +8,22 @@ import { describe, expect, it } from 'vitest';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const pkg = join(root, 'src');
 const allSrc = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
+  // node_modules and .git are not repo sources: the scan is over the repo's own code only.
+  if (f === 'node_modules' || f === '.git') return [];
   const p = join(dir, f);
   return statSync(p).isDirectory() ? allSrc(p) : (f.endsWith('.ts') ? [p] : []);
 });
+/** A path in canonical POSIX form, so a path comparison is separator-safe (the t_270d727b defect class). */
+const relPosix = (p: string): string => p.replace(/\\/g, '/');
 
 describe('AC-03-ER79-SHAPE (the E-79 build shape must not regress)', () => {
   it('(a) packages/engine/ledger holds no state/ directory and no schema.ts, and no new subdirectory is created', () => {
-    const dirs = readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+    // node_modules is an install artefact, not a source directory: the check is about the SOURCE layout.
+    const dirs = readdirSync(root, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name !== 'node_modules')
+      .map((d) => d.name);
     expect(dirs).not.toContain('state');
-    expect(dirs.sort()).toEqual(['data', 'node_modules', 'scripts', 'src', 'test']);
+    expect(dirs.sort()).toEqual(['data', 'scripts', 'src', 'test']);
     expect(readdirSync(pkg)).not.toContain('schema.ts');
   });
   it('(b) the repo exports no getCatalog and no buildCatalog; every catalog read goes through LedgerWorld.catalog', () => {
@@ -29,11 +36,13 @@ describe('AC-03-ER79-SHAPE (the E-79 build shape must not regress)', () => {
   });
   it('(c) HoldApi is declared only in src/world.ts', () => {
     const decls = allSrc(pkg).filter((f) => /export\s+(?:interface|type)\s+HoldApi\b/.test(readFileSync(f, 'utf8')));
-    expect(decls.map((f) => f.replace(/\\/g, '/'))).toEqual([join(pkg, 'world.ts').replace(/\\/g, '/')]);
+    // the comparison is separator-safe: the paths are normalised to POSIX before they are compared, so the test
+    // asserts the same thing on a Windows checkout and on the Linux CI runner (the t_270d727b defect class).
+    expect(decls.map(relPosix)).toEqual([relPosix(join(pkg, 'world.ts'))]);
   });
   it('(d) RailState is declared only in src/templates.ts', () => {
     const decls = allSrc(pkg).filter((f) => /export\s+interface\s+RailState\b/.test(readFileSync(f, 'utf8')));
-    expect(decls.map((f) => f.replace(/\\/g, '/'))).toEqual([join(pkg, 'templates.ts').replace(/\\/g, '/')]);
+    expect(decls.map(relPosix)).toEqual([relPosix(join(pkg, 'templates.ts'))]);
   });
 });
 
