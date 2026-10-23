@@ -1,0 +1,28 @@
+/* SET-08 About (17 §3.1.4 hairlines, §3.3.2). Tokens only; no accent surfaces. */
+.about { display: flex; flex-direction: column; gap: var(--sp-16); }
+.about-sec { display: flex; flex-direction: column; gap: var(--sp-8); }
+.about-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); min-height: 44px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.about-muted { color: var(--fg-muted); font-size: var(--fs-14); margin: 0; }
+.about-list { list-style: none; margin: 0; padding: 0; }
+/* The link is inline: a 28 px min-height (44 on touch) is the pointer / touch target, not a block. */
+.about a { color: var(--fg); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
+@media (pointer: coarse) { .about a { min-height: 44px; } }
+.about-licences { width: 100%; border-collapse: collapse; }
+.about-licences th { text-align: left; color: var(--fg-muted); font-weight: 500; padding: var(--sp-8) 0; border-bottom: 1px solid var(--line); }
+.about-licences td { padding: var(--sp-8) var(--sp-8) var(--sp-8) 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+/* S2-08 [P]: at narrow widths / large text the table reflows to stacked rows, never scrolling sideways. */
+@container settings (max-width: 520px) {
+  .about-licences thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .about-licences tr { display: block; border-bottom: 1px solid var(--line); padding: var(--sp-8) 0; }
+  /* Phone: the label sits above the value, never beside it. The repeated "Component / Licence / Link"
+     labels and their 7em gutter are dropped: one LICENCES heading does that work, and each row reads
+     as name / licence / link. */
+  .about-licences td { display: block; border: 0; padding: 2px 0; overflow-wrap: anywhere; }
+  .about-licences td::before { content: none; }
+  .about-licences td:first-child { font-family: var(--font-display); color: var(--fg); }
+  .about-licences td:nth-child(2) { color: var(--fg-muted); }
+}
+/* The external glyph: 14 px and --fg, so it reads as a glyph and not as a speck (12 px in --fg-muted was
+   ~1.5 device px of ink at 1x). The stroke is widened on the 24-unit grid to match the larger size. */
+.about-ext-glyph { display: inline-flex; color: var(--fg); }
+.about-ext-glyph svg { width: 14px; height: 14px; stroke-width: 2.25; }

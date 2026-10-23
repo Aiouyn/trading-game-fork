@@ -54,6 +54,9 @@ export interface AppDef {
   narrowMinW?: number;
   maxInstances: number;
   built: boolean;
+  /** Preferred open size (the default when the app is opened free). Defaults to 840×560. */
+  prefW?: number;
+  prefH?: number;
 }
 
 const ALWAYS: UnlockRule = { kind: "always" };
@@ -99,7 +102,7 @@ const ROWS: Row[] = [
   { id: "academy", group: "me" },
   { id: "help", group: "me" },
   { id: "atelier", group: "me" },
-  { id: "settings", group: "me" },
+  { id: "settings", group: "me", minW: 420, minH: 300, prefW: 1080, prefH: 720 },
   { id: "replay", group: "world", maxInstances: 2 },
   { id: "api", group: "trade", unlock: { kind: "flag", flag: "api.eligible" } },
 ];

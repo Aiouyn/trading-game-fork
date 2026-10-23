@@ -6,6 +6,12 @@ import { CCYS, type Ccy, type Id, type Money, type Qty, type Tick } from './mone
 import { legKey } from './templates';
 import type { AccrualRow, ConflictEscrow, Entry, Hold, LedgerEntity, Posting } from './types';
 import type { SideTag, SysSideFlows } from './sysside';
+/**
+ * E-79 point 2: 03's invariant contract IS core's `InvariantImpl`, parameterised over 03's `Posting`. There is no
+ * second invariant shape in 03 and no adapter. The import is TYPE-ONLY (the `type` keyword), so the edge is erased by
+ * the transform and the ledger's runtime module graph never needs core to be resolvable (E-80.4).
+ */
+import type { InvariantCtx, InvariantImpl, InvariantOutcome } from '@tycoon/engine-core/invariants';
 
 export interface Bal { balance: Money; qty: Qty }
 export type Accounts = SortedMap<string, Bal>;
@@ -563,11 +569,67 @@ export const INV_LED_027: Check = (v) => {
   return out;
 };
 
+/** E-79 point 2: `LedgerInvariant` is `InvariantImpl` over 03's postings. */
+export type LedgerInvariant = InvariantImpl<Posting>;
+
+/**
+ * T03-08 / 20 §3.1.4 INV-BS-011 (I11, I12) — Holds.
+ *
+ * I11: for every ACTIVE cash hold, Σ remaining over its parts ≤ the balance of the account it is on
+ *      ("available balance before the holds", 19 §3.5.3).
+ * I11b: no hold is ACTIVE past its expiry (02 §3.14.3 rule 3): every hold with `expiresTick < tick` is released.
+ * I12: a quantity is pledged at most once — for every quantity account, Σ remaining of the ACTIVE qty holds on it
+ *      ≤ the account's staged quantity (07 records pledges as qty holds with the loan's maturity as expiry).
+ *
+ * Scope TICK, severity FATAL (the 20 §3.1 catalogue row is authoritative over the card's "QUARANTINE" wording),
+ * costClass O_TOUCHED.
+ */
+export const INV_BS_011: Check = (v) => {
+  const out: Failure[] = [];
+  const holds = v.holds;
+  if (!holds) return out;
+  // Σ remaining per account, over the ACTIVE holds only.
+  const cashOn = new SortedMap<string, Money>();
+  const qtyOn = new SortedMap<string, Qty>();
+  for (const h of holds.values()) {
+    if (h.status !== 'ACTIVE') continue;
+    // I11b: an ACTIVE hold past its expiry is a defect (the expiry runs at P13, so a live one must not be stale).
+    if (h.expiresTick < v.tick) {
+      out.push(F('INV-BS-011', `I11b: hold ${h.holdId} expires at ${h.expiresTick} but is still ACTIVE at ${v.tick}`, 'released at P13 when the tick passes its expiry'));
+      continue;
+    }
+    for (const p of h.parts) {
+      if (h.kind === 'CASH') cashOn.set(p.accountKey, (cashOn.get(p.accountKey) ?? 0n) + p.remaining);
+      else qtyOn.set(p.accountKey, (qtyOn.get(p.accountKey) ?? 0n) + p.remaining);
+    }
+  }
+  // I11: the Σ remaining of the holds on an account never exceeds the account's staged balance.
+  for (const [key, held] of cashOn) {
+    const staged = bal(v.post, key);
+    if (held > staged) out.push(F('INV-BS-011', `I11: account=${key} holds=${held} balance=${staged}`, `holds ≤ balance`));
+  }
+  // I12: a quantity is pledged at most once — the Σ remaining of the qty holds never exceeds the staged quantity.
+  for (const [key, held] of qtyOn) {
+    const staged = v.post.get(key)?.qty ?? 0n;
+    if (held > staged) out.push(F('INV-BS-011', `I12: account=${key} pledged=${held} qty=${staged}`, `pledged ≤ qty`));
+  }
+  return out;
+};
+
+/** E-79 point 2: the 20A bridge for 03's invariants. The check is a pure function of the staged view; this wraps it
+ *  in the `InvariantImpl` contract so the 20A registry can run it. `ledgerView` (the shared check view) lands with
+ *  T03-05's re-cut card; until then the wrapper reads the postings and the hold rows from the 20A context directly. */
+export function ledgerInvariant(def: { id: string; description: string; severity: 'FATAL' | 'QUARANTINE' | 'ALERT'; costClass: 'O1' | 'O_TOUCHED' | 'O_ENTITIES' | 'O_LOG' },
+  check: (ctx: InvariantCtx<Posting>) => InvariantOutcome): LedgerInvariant {
+  return { def: { ...def, module: '03', scope: 'TICK', sampling: 'NEVER', sinceEngineVersion: '1.0.0' }, check };
+}
+
 export const TICK_INVARIANTS: readonly [string, Check][] = [
   ['INV-LED-001', INV_LED_001], ['INV-LED-002', INV_LED_002], ['INV-LED-003', INV_LED_003], ['INV-LED-004', INV_LED_004],
   ['INV-LED-005', INV_LED_005], ['INV-LED-006', INV_LED_006], ['INV-LED-007', INV_LED_007], ['INV-LED-008', INV_LED_008],
   ['INV-LED-012', INV_LED_012], ['INV-LED-014', INV_LED_014], ['INV-LED-015', INV_LED_015], ['INV-LED-026', INV_LED_026],
   ['INV-LED-010', INV_LED_010], ['INV-LED-010', INV_LED_010_I6_TICK], ['INV-LED-011', INV_LED_011], ['INV-LED-027', INV_LED_027],
+  ['INV-BS-011', INV_BS_011],
 ];
 
 function dedupe(f: Failure[]): Failure[] {
