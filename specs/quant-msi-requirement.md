@@ -145,7 +145,45 @@ the real drift is ~0.15, the top-end friction barely bites, so the R6 "excellent
 excellent play" rationale behind E-76 (b) weakens — that is a design question to ask once the
 number is real.
 
-## 6. Rerun obligation that comes with this card
+## 6. Finding (c): the placeholder was measured on a window that is NOT the AC's window
+
+This is separate from finding (b), and it is the one that most directly undercuts the cliff as a
+base case. **The 0.29 %/GD placeholder is an early-world number** — E-21 records where it came
+from: p10 `economy.ts`, supply 1.295B at GD 28 → 2.294B at GD 224, `sinkMult` stuck at 1. That is
+a **196-GD window at the start of the world**, and its arithmetic reproduces: compound
+**0.2922 %/GD**.
+
+**But E-76 is decided over GD 1000–1400** — the last 400 GD of a 1,400-GD run. On the same V1
+world, that window is materially slower:
+
+| Window | moneyIndex %/GD | money supply %/GD |
+|---|---|---|
+| GD 28–224 (where 0.29 came from) | — | **0.2922** (E-21's own arithmetic) |
+| GD 1000–1400 (where the AC is decided) | 0.1945 | 0.1332 |
+| **AC window vs early window** | **0.67×** | **0.46×** |
+
+So the early world ran **1.5×–2.2× faster** than the window the AC actually reads. **If that
+deceleration is real in V3, the placeholder overstates the drift the AC will see**, which is the
+same direction as finding (b) but for an independent reason: (b) is about the *sign* of the
+bot-vs-money race, (c) is about the *era* the number was sampled from.
+
+**Caveats, and why this does not settle anything:**
+
+1. **It is a different world and a different quantity.** V1 has no 03 §3.8 MSI (caveat 1 of §5),
+   so this compares two V1 gauges across two windows — it does not measure the AC's drift.
+2. **3 seeds per window.** Same weakness as (b): the 3-seed median is not the 20-seed statistic.
+3. **Deceleration is not guaranteed in V3.** The V1 world has `sinkMult` stuck at 1 (E-21 says so
+   outright), so it cannot self-correct; V3 has working sinks and a Stabilizer, so the shape of
+   the curve may differ entirely.
+4. **It cuts against the same cliff it seems to help.** A drift that is *falling* is a moving
+   target: if `msi_drift_per_gd` is ever set from the early window while the AC reads the late
+   window, the parameter and the measurement disagree by design.
+
+**The practical consequence:** when T03-24 lands, **measure the drift over GD 1000–1400, the same
+window the AC reads** — not over the first 200 GD, and not by reusing E-21's early-world figure.
+Measuring the wrong window is the quiet way to get this wrong.
+
+## 7. Rerun obligation that comes with this card
 
 E-76's rerun rule: *any change to `msi_drift_per_gd` or to mid-book yields re-runs the AC before
 merge.* When T03-24 lands, run:
