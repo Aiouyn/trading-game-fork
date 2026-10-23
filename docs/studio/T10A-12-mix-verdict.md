@@ -1,5 +1,33 @@
 # Studio verdict — T10A-12 `DISTRICT_ROLE_MIX` (8-row table, recut)
 
+
+---
+
+## ANNOTATION (Producer, added at review) — read before relying on §5 / §10.3
+
+**This record predates E-82 and E-84. Two of its premises are superseded; its findings are not.**
+
+**E-82** replaced the per-sector use-class reading this review assumes. Where this document rests on
+*"10 §3.3.1 names no use class for HEALTH or LUXURY"*, that is **no longer true**:
+
+| Class | E-82's ruling |
+|---|---|
+| `HEALTH` | **OFFICE** via `hl_hospital`, `hl_lab`; **RETAIL** via `hl_clinic` |
+| `LUXURY` | **RETAIL** + **INDUSTRIAL** via `lx_atelier` |
+
+E-82 measures **0 unmapped and 0 ambiguous** at facility level. The review's premise was written
+against a sector-level reading; the facility-level map resolves it.
+
+**E-84** superseded the card's `28 / 13 / 2` lot-type split with **`30 / 13 / 0`** (`CAMPUS` is a
+**derived** lot type: `offices` + area ≥ 8,000 m² + frontage ≥ 60 m). This record's *"28 of 43
+unplaceable"* is a **different metric** — footprint feasibility on the reference map — not the card's
+lot-type split. **Same number, two metrics.** Do not read them as the same claim.
+
+**What this annotation does NOT do:** it does not alter Studio's findings, its six fix items, or its
+refusal to sign off. Those stand as written and were judged on their own reasoning. It records only
+that two premises have moved.
+
+
 **Reviewer:** Studio (Avalon Studio) · **Date:** 2026-10-22 · **Card:** `export/build-plan/cards/10A/T10A-12.md` (DECISION D-10A-12-MIX)
 **Question asked:** does the new 8-row table read like a place? In particular, a CBD with `RETAIL_CONSUMER 0`.
 

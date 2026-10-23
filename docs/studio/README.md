@@ -6,7 +6,8 @@ Working records kept because they hold decisions that are not fully recorded in 
 
 - `T10A-12-mix-verdict.md` — the review of record: the unit defect (a per-mille table
   cannot express a count cap), the reference-map footprint measurement, the character
-  judgement per district row, and the 50 proposed per-mille values.
+  judgement per district row, and the 50 proposed per-mille values — **which are in
+`T10A-12-mix-04-42-review.md` (§4), not in the verdict**.
 - `T10A-12-mix-handover.md` — the card-ready text for the re-cut: the unit statement,
   the count-cap side table, the two authorised number changes, the preferred-facility
   statement and the strengthened count-cap AC.
@@ -21,7 +22,8 @@ in `export/build-plan/cards/10A/T10A-12.md`, so these files are a record, not th
 | `TROPHY_RES x FOOD_HOSPITALITY` 80 -> 20 | Landed: card and `rules.ts` `MIX_ROWS` |
 | `INDUSTRIAL x TECH_AI` 100 -> 40 | Landed: card and `rules.ts` `MIX_ROWS` |
 | Cap-binding fixture (3 CBD / 4 trophy parcels) | In the card (landed) |
-| **The 50 proposed per-mille values** | **HELD, never applied** — a held decision, recorded here and in board task `t_f0db2fb4` |
+| **The 50 proposed per-mille values** | **HELD, never applied** — a held decision. The 50 values are transcribed in
+`T10A-12-mix-04-42-review.md` §4; the hold is recorded in board task `t_f0db2fb4` |
 
 The 50 values were held pending a basis question (which map the card is calibrated
 against, and the parcel count per district assumed). They are preserved here so the
