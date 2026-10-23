@@ -49,7 +49,7 @@
 | 43 | [ ] | T03-03 | S0 | 03 | Reason-code catalog, TRANSFER codes part A (83 codes, LED_FX_CONVERSION to BNK_COLLATERAL_SEIZE) | T03-02 | 14351 | 450 |
 | 44 | [ ] | T03-04 | S0 | 03 | Reason-code catalog, TRANSFER codes part B (126 codes, INSOLV_DEBT_DISCHARGE to WLD_NPC_ACTOR_DEAL) | T03-02 | 15196 | 600 |
 | 45 | [ ] | T03-05 | S0 | 03 | Reason-code catalog, CREDIT and REVALUE codes, 24 §8 aliases and registrations, catalog assembly and CI check | T03-02, T03-03, T03-04, T20A-01 | 17092 | 1100 |
-| 46 | [ ] | T03-05R | S0 | 03 | The shared invariant-check view - re-cut of T03-05's invariants/types.ts block (LedgerCheckView, ledgerView, fail, LEDGER_INV_BASE, I_CHECK_TO_INV, exported QTY_ONLY_CODES) | T02-09, T03-01, T03-02, T03-08 | 28138 | 260 |
+| 46 | [ ] | T03-05R | S0 | 03 | The shared invariant-check view - re-cut of T03-05's invariants/types.ts block (LedgerCheckView, ledgerView, fail, LEDGER_INV_BASE, I_CHECK_TO_INV, exported QTY_ONLY_CODES) | T02-09, T03-01, T03-02, T03-08 | 28909 | 260 |
 | 47 | [ ] | T03-06 | S0 | 03 | Posting rules and the payment rail (cash legs across settlement cash, reserves and deposits) | T03-01, T03-05, T02-04 | 16218 | 1000 |
 | 48 | [ ] | T03-07 | S0 | 03 | Entry templates (PAY, SWAP_ASSET, MINT, BURN, ELASTIC_IN/OUT, LEND, REPAY, CB_CREDIT, ACCRUE, ACCRUE_PAIR, FX, MOVE_QTY, RECLASS) | T03-01, T03-05, T03-06, T02-04 | 18680 | 1400 |
 | 49 | [x] | T03-08 | S0 | 03 | Ledger runtime state - entity registry (registerEntity), lazy accounts, holds (HoldApi), facts, tick queue and rail state | T02-09, T02-11, T03-01, T03-05, T03-06 | 20219 | 1300 |
