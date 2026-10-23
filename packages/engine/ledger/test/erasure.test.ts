@@ -1,21 +1,31 @@
-// E-80.4's ERASURE TEST, in the ledger's own isolated-CI shape.
-// The ledger's tsconfig maps '@tycoon/engine-core/invariants' to ../core/invariants/index.ts. The import must be
-// TYPE-ONLY, so the transform erases it: the ledger's RUNTIME module graph must never need core to be resolvable.
-// This file asserts that by importing a module that THROWS if it is ever evaluated at runtime.
-import { describe, expect, it } from 'vitest';
-import { INV_BS_011, LedgerInvariant, ledgerInvariant, type Posting } from '../src';
+// E-80.4's ERASURE PROOF: the ledger -> core edge is TYPE-ONLY, so the ledger's RUNTIME module graph never needs
+// core to be resolvable.
+//
+// This is a real runtime assertion, not a comment: '@tycoon/engine-core/invariants' is registered as a module whose
+// factory THROWS, and the ledger is then loaded (`../src`). A type-only import is erased by the transform, so the
+// mocked specifier is never requested and the sentinel never runs. If the import ever becomes a value import — or
+// anything else in the graph reaches core at runtime — evaluating the factory throws CORE_MODULE_WAS_EVALUATED and
+// this file fails. (The vacuous form of this test — an arrow function that is never invoked — passes whatever
+// src/ imports, because `void (fn)` evaluates the function VALUE and never calls it.)
+import { describe, expect, it, vi } from 'vitest';
+import { INV_BS_011, ledgerInvariant, type LedgerInvariant, type Posting } from '../src';
 
-/**
- * A stand-in for core's invariant module: it throws if it is ever EVALUATED at runtime. If the ledger's import of
- * '@tycoon/engine-core/invariants' were a value import (or were not erased), loading the ledger would throw this.
- */
-let coreWasEvaluated = false;
-const CORE_WAS_EVALUATED = 'CORE_MODULE_WAS_EVALUATED';
-void ((): void => { coreWasEvaluated = true; throw new Error(CORE_WAS_EVALUATED); });
+/** Set only if the stand-in core module is EVALUATED at runtime. `vi.hoisted` because `vi.mock` is hoisted above imports. */
+const sentinel = vi.hoisted(() => ({ evaluated: false }));
+
+// The vitest transform hoists this above the imports, so the mock is registered before `../src` is evaluated.
+vi.mock('@tycoon/engine-core/invariants', () => {
+  sentinel.evaluated = true;
+  throw new Error('CORE_MODULE_WAS_EVALUATED');
+});
 
 describe('E-80.4 the ledger -> core edge is type-only and erased', () => {
-  it('the ledger loads and its invariant contract is core\'s InvariantImpl, with core never evaluated', () => {
-    expect(coreWasEvaluated).toBe(false);
+  it('the ledger loads and its invariant contract is core\'s InvariantImpl, with core never evaluated', async () => {
+    expect(sentinel.evaluated).toBe(false);
+    // ...and the trap is ARMED: requesting that specifier here DOES evaluate the factory that threw, so a green run
+    // above is not a mock that silently failed to register (the "proof that cannot fail" defect this file used to have).
+    await expect(import('@tycoon/engine-core/invariants')).rejects.toThrow();
+    expect(sentinel.evaluated).toBe(true);
     // The 20A contract: a def and a check, parameterised over 03's Posting.
     const inv: LedgerInvariant = ledgerInvariant(
       { id: 'INV-PROBE', description: 'probe', severity: 'FATAL', costClass: 'O1' },
