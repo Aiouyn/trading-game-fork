@@ -90,7 +90,9 @@ export function openApp(windows: WindowRect[], app: AppId, a: Area, context?: st
   const existing = same ?? (mine.length >= cap ? (mine.find((w) => w.context !== "Journal") ?? mine[0]) : undefined);
   if (existing) return { windows: bringToFront(windows, existing), focused: existing, opened: false };
   const instance = mine.reduce((m, w) => Math.max(m, w.instance), 0) + 1;
-  const size = clampSize(app, Math.min(a.w, 840), Math.min(a.h, 560), a.w);
+  // The default open size is the app's preferred size (840×560 unless it declares another), clamped to the area.
+  const def = APPS[app];
+  const size = clampSize(app, Math.min(a.w, def.prefW ?? 840), Math.min(a.h, def.prefH ?? 560), a.w);
   const n = windows.length % 6;
   const rect: WindowRect = {
     app, instance, workspace: 1, collapsed: false, snap: null, context,
