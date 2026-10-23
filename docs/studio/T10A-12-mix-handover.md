@@ -3,7 +3,7 @@
 
 ---
 
-## ANNOTATION (Producer, added at review) — read before relying on §5 / §10.3
+## ANNOTATION (Producer, added at review) — read before relying on verdict §6 (line 345) / handover §9 (line 478)
 
 **This record predates E-82 and E-84. Two of its premises are superseded; its findings are not.**
 
