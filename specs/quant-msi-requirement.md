@@ -237,3 +237,9 @@ silent the choice below is mine and QA may overrule it.
    which N to use for a style statistic. Reading it at the window end is the simplest defensible
    choice and it changes nothing for managed and average (they sit below drift, so the drag is
    inert). It does move excellent's number, so it is the one to revisit if E-75 is ever re-derived.
+4. **The committed fixture is a REGRESSION LOCK, not independent validation.** Its growth rates
+   were reverse-engineered from E-75's published medians, so "the runner reproduces E-75" proves
+   the pipeline still computes what it computed when it was written — it does **not** corroborate
+   E-75 from independent data. No test reproduces E-75's published P90 values (0.072 / 0.102) or
+   its worst seeds, because those per-seed values were never recorded. Treat a green fixture run as
+   "the instrument has not regressed", never as "the AC passes".

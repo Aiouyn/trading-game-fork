@@ -156,6 +156,43 @@ describe("flow adjustment (E-56 Q10 / E-59 (c))", () => {
     expect(naive[naive.length - 1]!.ratePctGd).toBeGreaterThan(0);
   });
 
+  it("KNOWN LIMITATION: a transfer dated off the checkpoint grid reads as growth", () => {
+    // QA flagged that the single flow test puts the grant exactly on GD 400, so it never
+    // exercises the gap. This test pins the gap as a documented limitation rather than leaving
+    // it as prose. Only flows dated on an interval's END CHECKPOINT are subtracted, so a grant
+    // booked mid-interval is folded into the next checkpoint and reads as growth.
+    //
+    // Exact today: E-60 records F_d = 0 in the E-76 verification, so no flow moves the number.
+    // A full implementation must sum the flows ACROSS each interval, not read one day.
+    // The book sits at 1e9, then is permanently at 2e9 from GD 16 onward — the shape a real
+    // grant leaves behind.
+    const flat: Record<number, number> = {};
+    for (let gd = 8; gd <= 400; gd += 8) flat[gd] = 1e9;
+    const granted: Record<number, number> = {};
+    for (const [k, v] of Object.entries(flat)) {
+      granted[Number(k)] = Number(k) >= 16 ? 2e9 : v;
+    }
+
+    // The grant lands on GD 16 = a checkpoint day: subtracted, so no growth is seen.
+    const onGrid: RunInput = {
+      seed: "s",
+      style: "average",
+      netWorth: granted,
+      external: { 16: 1e9 },
+    };
+    expect(meanDailyRatePctGd(onGrid, 400)).toBeCloseTo(0, 10);
+
+    // The same grant lands on GD 12 = NOT a checkpoint day. `external` has no key at GD 16, so
+    // nothing is subtracted and the jump reads as growth. This is the limitation, asserted.
+    const offGrid: RunInput = {
+      seed: "s",
+      style: "average",
+      netWorth: granted,
+      external: { 12: 1e9 },
+    };
+    expect(meanDailyRatePctGd(offGrid, 400)).toBeGreaterThan(0);
+  });
+
   it("normalises any checkpoint grid to one game day", () => {
     // 1%/GD compounded: a 4-GD grid and an 8-GD grid must agree.
     const daily = runAt("a", "average", 1, 1e9, 400);
