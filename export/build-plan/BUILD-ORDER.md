@@ -101,19 +101,19 @@
 | 95 | [ ] | T05-07 | S2 | 05 | Price bands, volatility interruptions, single-asset halts, market-wide circuit breakers, futures limits | T05-01, T05-02, T05-05 | 18135 | 1000 |
 | 96 | [ ] | T05-08 | S2 | 05 | Model ADV, background volume and the intraday volume profile | T05-01, T05-02, T05-03, T04-?? | 16701 | 600 |
 | 97 | [ ] | T05-09 | S2 | 05 | Order types, time in force, flags, OCO and brackets, triggers, market-order protection, icebergs and modification | T05-01, T05-02, T05-07 | 18266 | 1100 |
-| 98 | [ ] | T05-10 | S2 | 05 | Fees, volume tiers, message fee, transaction levy and settlement postings | T05-01, T05-02, T03-02, T03-03, T03-08, T03-09, T03-24, T03-??, T04-?? | 21963 | 1000 |
-| 99 | [ ] | T05-11 | S2 | 05 | Pre-trade validation (P1), position and market limits, auto-split, and the order intents | T05-01, T05-02, T05-07, T05-08, T05-09, T05-10, T14A-07, T13A-06, T03-08, T03-09 | 25595 | 1400 |
-| 100 | [ ] | T05-12 | S2 | 05 | FX books, autoFx legs, cross-currency orders, capital controls and multi-leg derivative packages | T05-01, T05-06, T05-10, T05-11, T04-?? | 17968 | 900 |
+| 98 | [ ] | T05-10 | S2 | 05 | Fees, volume tiers, message fee, transaction levy and settlement postings | T05-01, T05-02, T03-02, T03-03, T03-08, T03-09, T03-24, T03-??, T04-?? | 21985 | 1000 |
+| 99 | [ ] | T05-11 | S2 | 05 | Pre-trade validation (P1), position and market limits, auto-split, and the order intents | T05-01, T05-02, T05-07, T05-08, T05-09, T05-10, T14A-07, T13A-06, T03-08, T03-09 | 25602 | 1400 |
+| 100 | [ ] | T05-12 | S2 | 05 | FX books, autoFx legs, cross-currency orders, capital controls and multi-leg derivative packages | T05-01, T05-06, T05-10, T05-11, T04-?? | 17975 | 900 |
 | 101 | [ ] | T05-13 | S2 | 05 | Execution algorithms (TWAP, VWAP, POV, IS) and the algo intents | T05-01, T05-02, T05-07, T05-08, T05-11, T14A-07 | 17997 | 800 |
 | 102 | [ ] | T05-14 | S2 | 05 | NPC trader pools and external NPC flows (CB, treasury, liquidation, mandate, fund flows, sell programs) | T05-01, T05-03, T05-04, T05-07, T05-08, T04-?? | 20317 | 1300 |
 | 103 | [ ] | T05-15 | S2 | 05 | Belief model (claims, rumors, credibility, overlay b, resolution and hand-off) | T05-01, T05-03, T05-04 | 17672 | 700 |
 | 104 | [ ] | T05-16 | S2 | 05 | Cause vectors, gap tracer, explainMove, k-anonymity and priced-in bands ("Why it moved") | T05-01, T05-03, T05-04, T05-06, T05-15 | 18572 | 1200 |
-| 105 | [ ] | T05-17 | S2 | 05 | Surveillance features F1-F15, evidence references and the daily surveillance score | T05-01, T05-06, T05-10, T05-11, T05-15 | 18296 | 1400 |
-| 106 | [ ] | T05-18 | S2 | 05 | Registered market makers (registration, quotes, obligations, rebates, crowding) and block crosses | T05-01, T05-02, T05-04, T05-06, T05-10, T05-11, T14A-07 | 19819 | 1000 |
+| 105 | [ ] | T05-17 | S2 | 05 | Surveillance features F1-F15, evidence references and the daily surveillance score | T05-01, T05-06, T05-10, T05-11, T05-15 | 18302 | 1400 |
+| 106 | [ ] | T05-18 | S2 | 05 | Registered market makers (registration, quotes, obligations, rebates, crowding) and block crosses | T05-01, T05-02, T05-04, T05-06, T05-10, T05-11, T14A-07 | 19826 | 1000 |
 | 107 | [ ] | T05-19 | S2 | 05 | Instrument lifecycle and corporate actions, index computation and the bond market depth index | T05-01, T05-03, T05-04, T05-07, T05-09, T05-11 | 19533 | 1000 |
 | 108 | [ ] | T05-20 | S2 | 05 | Market data publication (book, tape, ticker, daily statistics), engine read API and views for screens and downstream modules | T05-01, T05-02, T05-04, T05-08, T05-11, T05-16, T05-19, T14A-07 | 20784 | 1300 |
-| 109 | [ ] | T05-21 | S2 | 05 | Risk API (VaR, ES, exposures, LVaR, stress), pre-trade preview and execution analytics | T05-01, T05-03, T05-04, T05-07, T05-10, T05-13, T05-20, T14A-07 | 19692 | 1200 |
-| 110 | [ ] | T05-22 | S2 | 05 | Tick pipeline wiring of module 05 (P1-P14 placement, sub-phases 6.0/6a/6b/6c/6d, boundaries, determinism and performance) | T05-01, T05-02, T05-03, T05-04, T05-05, T05-06, T05-07, T05-08, T05-09, T05-10, T05-11, T05-12, T05-13, T05-14, T05-15, T05-16, T05-17, T05-18, T05-19, T05-20, T05-21 | 28483 | 1100 |
+| 109 | [ ] | T05-21 | S2 | 05 | Risk API (VaR, ES, exposures, LVaR, stress), pre-trade preview and execution analytics | T05-01, T05-03, T05-04, T05-07, T05-10, T05-13, T05-20, T14A-07 | 19699 | 1200 |
+| 110 | [ ] | T05-22 | S2 | 05 | Tick pipeline wiring of module 05 (P1-P14 placement, sub-phases 6.0/6a/6b/6c/6d, boundaries, determinism and performance) | T05-01, T05-02, T05-03, T05-04, T05-05, T05-06, T05-07, T05-08, T05-09, T05-10, T05-11, T05-12, T05-13, T05-14, T05-15, T05-16, T05-17, T05-18, T05-19, T05-20, T05-21 | 28490 | 1100 |
 | 111 | [ ] | T05-23 | S2 | 05 | Module assembly (index.ts, params.ts, invariants.ts, genesis) and 05 integration acceptance tests | T05-01, T05-05, T05-06, T05-07, T05-11, T05-12, T05-13, T05-18, T05-19, T05-20, T05-21, T05-22, T03-08, T04-??, T14A-11, T13A-?? | 29041 | 1300 |
 | 112 | [ ] | T06A-01 | S2 | 06A | Asset schema, tables, ids, ports, price parameters and the 400-instrument launch universe | T05-01, T05-20, T03-08, T04-01 | 48006 | 1400 |
 | 113 | [ ] | T06A-02 | S2 | 06A | License gates, sessions, T+0 settlement, mark price and beneficial-owner limits | T06A-01, T05-01, T05-20, T14A-07, T14A-08, T13A-??, T03-?? | 24075 | 1100 |
