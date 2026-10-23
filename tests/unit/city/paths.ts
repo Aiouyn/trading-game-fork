@@ -12,6 +12,46 @@ export const OWNED_CONTENT: readonly string[] = [
   'packages/content/data/district-flags.json',
   'packages/content/src/district-flags.test.ts',
 ];
+/**
+ * T10A-12 (Producer ruling, 2026-10-22): City Dev owns the `packages/citygen` package this
+ * card CREATES, plus the two CI files that make it checked.
+ *
+ * An EXACT-PATH allowlist, never a directory glob: `packages/citygen/` must not become an
+ * allowed prefix, so a future `packages/citygen/other/**` file still trips the check until it is
+ * listed. The negative probe in `paths.test.ts` is what keeps that true.
+ */
+export const OWNED_CITYGEN: readonly string[] = [
+  // The package skeleton (5 files) and the lockfile CI's `npm ci` needs.
+  'packages/citygen/package.json',
+  'packages/citygen/package-lock.json',
+  'packages/citygen/tsconfig.json',
+  'packages/citygen/vitest.config.ts',
+  'packages/citygen/eslint.config.mjs',
+  'packages/citygen/.gitignore',
+  // The seven placement sources.
+  'packages/citygen/src/placement/types.ts',
+  'packages/citygen/src/placement/rules.ts',
+  'packages/citygen/src/placement/classify.ts',
+  'packages/citygen/src/placement/buffers.ts',
+  'packages/citygen/src/placement/suitability.ts',
+  'packages/citygen/src/placement/assign.ts',
+  'packages/citygen/src/placement/index.ts',
+  // The five placement tests.
+  'packages/citygen/test/placement/rules.test.ts',
+  'packages/citygen/test/placement/classify.test.ts',
+  'packages/citygen/test/placement/buffers.test.ts',
+  'packages/citygen/test/placement/suitability.test.ts',
+  'packages/citygen/test/placement/assign.test.ts',
+  // The F-1/F-3 proof (fork PR #19): the parser scan, the committed mutant text it reads, and the
+  // kill harness that engine-check runs. Added when QA found the regex blind to the destructuring,
+  // bracket and computed-key spellings.
+  'packages/citygen/test/placement/role-column-scan.ts',
+  'packages/citygen/test/placement/role-copy-mutants.json',
+  'packages/citygen/scripts/mutants-t10a-12-role.mjs',
+  // The two CI files that wire the package into the checks.
+  'scripts/engine-check.mjs',
+  '.github/workflows/engine.yml',
+];
 // next.config.ts: the NEXT_PUBLIC_CITY_E2E define (Producer-authorized, prod hook leak).
 export const APPROVED_EXCEPTIONS = new Set(['package.json', 'package-lock.json', '.github/workflows/city.yml', 'next.config.ts']);
 
@@ -27,7 +67,7 @@ export function c16Verdict(branch: string | null, changed: readonly string[]): C
   if (!branch) return { status: 'skip', reason: 'C-16: branch unknown (no GITHUB_HEAD_REF, GITHUB_REF_NAME or git branch)' };
   if (!isCityBranch(branch)) return { status: 'skip', reason: `C-16: '${branch}' is not a City Dev branch (v3/city-*, city/*); not checked` };
   const outside = [...new Set(changed)].filter((p) => p && !APPROVED_EXCEPTIONS.has(p)
-    && !OWNED_CONTENT.includes(p) && !OWNED.some((r) => r.test(p)));
+    && !OWNED_CONTENT.includes(p) && !OWNED_CITYGEN.includes(p) && !OWNED.some((r) => r.test(p)));
   return outside.length ? { status: 'fail', outside } : { status: 'pass' };
 }
 

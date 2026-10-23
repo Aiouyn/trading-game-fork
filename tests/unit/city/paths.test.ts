@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execSync } from 'node:child_process';
-import { c16Verdict, currentBranch, isCityBranch, OWNED_CONTENT } from './paths';
+import { c16Verdict, currentBranch, isCityBranch, OWNED_CITYGEN, OWNED_CONTENT } from './paths';
 
 const sh = (cmd: string): string | null => {
   try {
@@ -15,9 +15,20 @@ describe('C-16 path check', () => {
   const city = branch !== null && isCityBranch(branch);
   it.skipIf(!city)(`this City Dev branch touches no path outside Spec 2 ownership (${branch ?? 'unknown branch'})`, () => {
     const base = process.env.CITY_BASE_REF ?? (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'origin/main');
-    const out = sh(`git diff --name-only ${base}...HEAD && git diff --name-only HEAD && git ls-files --others --exclude-standard`);
-    if (out === null) return; // no git history (e.g. tarball)
-    const v = c16Verdict(branch, out.split('\n'));
+    // The file list, in ONE git process, and with a command that does not read file CONTENTS.
+    //
+    // The old form ran `git diff base...HEAD`, `git diff HEAD` and `git ls-files --others` as
+    // three separate processes, and `git diff` computes the CONTENT diff. On a branch that adds
+    // a 103 KB lockfile that first call alone took 2.6 s (measured), which pushed the test past
+    // vitest's 5 s default timeout when the suite ran under load.
+    //
+    // `git diff-tree --no-commit-id --name-only -r --merge-base <base> HEAD` produces the SAME
+    // file list - verified byte for byte against `git diff --name-only base...HEAD` - in 0.22 s,
+    // because it compares TREES and never opens the blobs. The `--merge-base` flag is what makes
+    // it the three-dot comparison.
+    const raw = sh(`git diff-tree --no-commit-id --name-only -r --merge-base ${base} HEAD; git diff --name-only HEAD; git ls-files --others --exclude-standard`);
+    if (raw === null) return; // no git history (e.g. tarball)
+    const v = c16Verdict(branch, raw.split('\n'));
     expect(v).toEqual({ status: 'pass' });
   });
   if (!city) it('skips on branches City Dev does not own', () => {
@@ -106,5 +117,90 @@ describe('C-16 negative-space probe: the OWNED_CONTENT grant must not leak', () 
     });
     // And the list holds exactly two entries - not one more, not one fewer.
     expect(OWNED_CONTENT).toHaveLength(2);
+  });
+});
+
+describe('T10A-12: the OWNED_CITYGEN grant covers the package this card creates, and nothing else', () => {
+  // The 23 exact paths: the package skeleton (6, including the lockfile), the seven placement
+  // sources, the five placement tests, the three F-1/F-3 proof files, and the two CI files.
+  const NAMED: readonly string[] = [
+    'packages/citygen/package.json',
+    'packages/citygen/package-lock.json',
+    'packages/citygen/tsconfig.json',
+    'packages/citygen/vitest.config.ts',
+    'packages/citygen/eslint.config.mjs',
+    'packages/citygen/.gitignore',
+    'packages/citygen/src/placement/types.ts',
+    'packages/citygen/src/placement/rules.ts',
+    'packages/citygen/src/placement/classify.ts',
+    'packages/citygen/src/placement/buffers.ts',
+    'packages/citygen/src/placement/suitability.ts',
+    'packages/citygen/src/placement/assign.ts',
+    'packages/citygen/src/placement/index.ts',
+    'packages/citygen/test/placement/rules.test.ts',
+    'packages/citygen/test/placement/classify.test.ts',
+    'packages/citygen/test/placement/buffers.test.ts',
+    'packages/citygen/test/placement/suitability.test.ts',
+    'packages/citygen/test/placement/assign.test.ts',
+    'packages/citygen/test/placement/role-column-scan.ts',
+    'packages/citygen/test/placement/role-copy-mutants.json',
+    'packages/citygen/scripts/mutants-t10a-12-role.mjs',
+    'scripts/engine-check.mjs',
+    '.github/workflows/engine.yml',
+  ];
+
+  it('the grant is exactly the twenty-three named paths', () => {
+    expect(OWNED_CITYGEN).toHaveLength(23);
+    for (const p of NAMED) expect(OWNED_CITYGEN, p).toContain(p);
+    for (const p of OWNED_CITYGEN) expect(NAMED, p).toContain(p);
+  });
+
+  it('every named path passes the check on a City Dev branch', () => {
+    for (const p of NAMED) {
+      expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'pass' });
+    }
+  });
+
+  it('a City Dev branch touching the whole package at once passes', () => {
+    expect(c16Verdict('city/t10a-12', NAMED)).toEqual({ status: 'pass' });
+  });
+
+  it('the negative-space probe: every other packages/** path still FAILS', () => {
+    // A scope grant that silently becomes a wildcard rots unnoticed, because the files it
+    // wrongly admits are exactly the files nobody looks at. This probe lives in the repo, not in
+    // a reviewer's session.
+    const mustFail = [
+      'packages/citygen/other/thing.ts',          // a future file under the package
+      'packages/citygen/src/index.ts',            // T10A-03's file, NOT this card's
+      'packages/citygen/src/parcels.ts',          // T10A-03's file
+      'packages/citygen/src/placement/predicates.ts', // a file this card does not create
+      'packages/citygen/test/determinism.test.ts',    // T10A-03's test
+      'packages/citygen/package.json.bak',       // a backup extension
+      'packages/citygen/package.jsonx',          // a longer filename
+      'packages/citygen/package-lock.json.bak',  // a backup of the lockfile
+      'packages/engine/core/index.ts',           // another package entirely
+      'packages/content/data/cities.json',       // another content file
+      'packages/content/src/view.ts',            // another content file
+      'packages/params/src/index.ts',            // another package
+      'scripts/lint/other.mjs',                  // another script
+      '.github/workflows/other.yml',              // another workflow
+    ];
+    expect(mustFail.length).toBe(14);
+    for (const p of mustFail) {
+      expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'fail', outside: [p] });
+    }
+  });
+
+  it('the grant is a list of exact paths, not a prefix or a directory glob', () => {
+    // A prefix would admit every file under packages/citygen/, and the card says it must not.
+    for (const p of [
+      'packages/citygen/src/placement/predicates.ts',
+      'packages/citygen/src/index.ts',
+      'packages/citygen/test/determinism.test.ts',
+    ]) {
+      expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'fail', outside: [p] });
+    }
+    // And the list holds exactly twenty-three entries - not one more, not one fewer.
+    expect(OWNED_CITYGEN).toHaveLength(23);
   });
 });
