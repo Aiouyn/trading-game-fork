@@ -13,6 +13,10 @@ import { HARNESS_NAME, harnessesOf, runHarnesses } from './engine-check.mjs';
 // the CI job runs (scripts/engine-check.mjs <pkg> -> runHarnesses(dir)).
 const REPO = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const scratch = (): string => mkdtempSync(join(tmpdir(), 'engine-check-test-'));
+// What a harness that MEASURED prints before it exits 0. runHarnesses requires it (see the skip-path test):
+// an exit 0 alone cannot tell a real run from one that skipped, so a fake harness that means "this ran fine"
+// has to say so the same way the real one does.
+const SUMMARY = "console.log('=== mutants killed: 1   mutants survived: 0   spawn errors: 0 ===');\n";
 
 describe('CI wiring: the mutant harness runs inside the check (pkg) job', () => {
   it('harnessesOf finds the harness by FILE EXISTENCE and skips a package with no harness', () => {
@@ -57,8 +61,39 @@ describe('CI wiring: the mutant harness runs inside the check (pkg) job', () => 
       // A harness that exits 1 (what a surviving mutant does): the step must fail.
       writeFileSync(join(dir, 'scripts', 'mutants-failing.mjs'), 'process.exitCode = 1;\n');
       expect(() => runHarnesses(dir)).toThrow();
-      // A harness that exits 0 does not.
-      writeFileSync(join(dir, 'scripts', 'mutants-failing.mjs'), 'process.exitCode = 0;\n');
+      // A harness that exits 0 does not - as long as it shows its work.
+      writeFileSync(join(dir, 'scripts', 'mutants-failing.mjs'), `${SUMMARY}process.exitCode = 0;\n`);
+      expect(() => runHarnesses(dir)).not.toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a run that MEASURES NOTHING cannot exit 0: the skip path fails the job', () => {
+    // QA on PR #26: the harness gained a path that returns before anything is measured (the pristine
+    // refusal), and CI reads only the exit status - so `process.exitCode = 1` -> `= 0` there turns a
+    // refusal into a green job that tested nothing. The same hole covers a harness whose body never
+    // runs, a renamed harness, and a summary that reports zero kills. Every one of them must fail.
+    const dir = scratch();
+    try {
+      mkdirSync(join(dir, 'scripts'));
+      const harness = join(dir, 'scripts', 'mutants-skip.mjs');
+
+      // (a) THE SKIP PATH ITSELF: the pristine refusal, with its exit code swallowed.
+      writeFileSync(harness, "console.log('REFUSING TO RUN: these files differ from HEAD');\nprocess.exitCode = 0;\n");
+      expect(() => runHarnesses(dir)).toThrow(/MEASURED NOTHING/);
+
+      // (b) A SILENT HARNESS: exits 0 and prints nothing at all.
+      writeFileSync(harness, 'process.exitCode = 0;\n');
+      expect(() => runHarnesses(dir)).toThrow(/MEASURED NOTHING/);
+
+      // (c) A SUMMARY THAT REPORTS NOTHING KILLED: measured none, so it proves none.
+      writeFileSync(harness, "console.log('=== mutants killed: 0   mutants survived: 0 ===');\nprocess.exitCode = 0;\n");
+      expect(() => runHarnesses(dir)).toThrow(/MEASURED NOTHING/);
+
+      // (d) THE CONTROL: the same wiring on a harness that SHOWS ITS WORK passes, so (a)-(c) fail
+      // for the reason claimed and not because runHarnesses rejects everything.
+      writeFileSync(harness, `${SUMMARY}process.exitCode = 0;\n`);
       expect(() => runHarnesses(dir)).not.toThrow();
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -70,7 +105,7 @@ describe('CI wiring: the mutant harness runs inside the check (pkg) job', () => 
     const marker = join(dir, 'ran.txt');
     try {
       mkdirSync(join(dir, 'scripts'));
-      writeFileSync(join(dir, 'scripts', 'mutants-marker.mjs'), `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'ran');\n`);
+      writeFileSync(join(dir, 'scripts', 'mutants-marker.mjs'), `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'ran');\n${SUMMARY}`);
       expect(existsSync(marker)).toBe(false);            // nothing ran yet
       runHarnesses(dir);
       expect(existsSync(marker)).toBe(true);             // the harness process really ran
@@ -91,7 +126,7 @@ describe('CI wiring: the mutant harness runs inside the check (pkg) job', () => 
     const argvMarker = join(dir, 'argv.txt');
     try {
       mkdirSync(join(dir, 'scripts'));
-      writeFileSync(join(dir, 'scripts', 'mutants-argv.mjs'), `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'ran');\nwriteFileSync(${JSON.stringify(argvMarker)}, JSON.stringify(process.argv));\n`);
+      writeFileSync(join(dir, 'scripts', 'mutants-argv.mjs'), `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'ran');\nwriteFileSync(${JSON.stringify(argvMarker)}, JSON.stringify(process.argv));\n${SUMMARY}`);
       runHarnesses(dir);
       expect(existsSync(marker)).toBe(true);
       // The script saw its own path as argv[1] - proof the SCRIPT was passed as an argument.

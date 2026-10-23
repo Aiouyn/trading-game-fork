@@ -6,8 +6,10 @@
 //   (1) STEP 1 - the wiring runs a THROWAWAY harness that reports a surviving mutant and exits 1.
 //       The wiring must FAIL on that exit code. This is the property that makes the CI job go red;
 //       a wiring that ran the harness and ignored its result would be worse than no harness at all.
-//   (2) STEP 2 - the CONTROL: the same wiring against a harness that exits 0 must PASS, so the
-//       failure in step 1 was caused by the surviving mutant and not by the wiring itself.
+//   (2) STEP 2 - the CONTROL: the same wiring against a harness that prints a MEASUREMENT SUMMARY and
+//       exits 0 must PASS, so the failure in step 1 was caused by the surviving mutant and not by the
+//       wiring itself. The summary is part of the harness's contract (see requireMeasurement in
+//       engine-check.mjs): an exit 0 with no summary means nothing was measured and must NOT pass.
 //
 // The proof that the REAL harness reports SURVIVED and exits 1 on a surviving mutant is the harness's
 // OWN self-test (it already has that case) plus the committed harness, so it is not re-derived here.
@@ -63,8 +65,12 @@ try {
     console.log(`--- step 1 ok: the wiring failed on the surviving mutant (${message.split('\n')[0]})`);
   }
 
-  // ── STEP 2: the CONTROL - a harness that exits 0 must PASS ─────────────────────────────────────────
-  writeFileSync(join(pkg, 'scripts', 'mutants-survivor.mjs'), 'process.exitCode = 0;\n');
+  // ── STEP 2: the CONTROL - a harness that shows its work and exits 0 must PASS ──────────────────────
+  writeFileSync(join(pkg, 'scripts', 'mutants-survivor.mjs'), [
+    "console.log('=== mutants killed: 23   mutants survived: 0   spawn errors: 0 ===');",
+    'process.exitCode = 0;',
+    '',
+  ].join('\n'));
   let controlThrew = false;
   try { runHarnesses(pkg); } catch { controlThrew = true; }
   if (controlThrew) {
