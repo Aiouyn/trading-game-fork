@@ -89,14 +89,63 @@ and a 27.6 bp margin.
 (b) fails on merge with no code fault anywhere. The person building `msi()` must know the number
 the drift is being measured against.
 
-**Unit warning — this number was reported wrong once.** `msi_drift_per_gd` is a *decimal
-fraction* (0.0029); every errata table and AC limit is a *%/GD number* (0.29, 0.07, 0.11). Mixing
-them is a 100× error. Proof from E-60's own table: excellent at $2B is nominal 0.417 with real
-+0.127, so `0.417 − 0.127 = 0.290 %/GD` = decimal 0.0029. **An earlier report of `0.0059` was this
-error** (it added the decimal 0.0029 to the %/GD headroom 0.003); the correct decimals are
-**0.00293** (cliff) and **0.0029** (placeholder).
+**Unit warning — this number was reported wrong once, and caught before it reached the repo.**
+`msi_drift_per_gd` is a *decimal fraction* (0.0029); every errata table and AC limit is a *%/GD
+number* (0.29, 0.07, 0.11). Mixing them is a 100× error. Proof from E-60's own table — three rows
+that must agree: `0.417 − 0.127 = 0.290`, `0.296 − 0.006 = 0.290`, `0.290 − 0.000 = 0.290`. **An
+earlier report of `0.0059` was this error** (it added the decimal 0.0029 to the %/GD headroom
+0.003). It never reached a merged file: **E-80 already records the correct constant**
+("the AC flips to FAIL above a measured drift of **0.293 %/GD (decimal 0.00293)**"), so this page
+corroborates E-80 rather than correcting it. The correct decimals are **0.00293** (cliff) and
+**0.0029** (placeholder).
 
-## 5. Rerun obligation that comes with this card
+**Check any cliff figure by demanding three rows that agree.** One conversion that reproduces a
+single published pair can still be 100× out; three independent rows cannot all be.
+
+## 5. Finding (b): the possible OPPOSITE SIGN — labelled a hypothesis, not a result
+
+The cliff above assumes the measured drift lands **near** the 0.29 placeholder. My bounded probe of
+the V1 `p10/integration` world suggests it may land **below** it, which would flip the sign of the
+risk. **This is a hypothesis. It does not settle E-76 and it must not be read as a pass.**
+
+Measured on 3 seeds, average style, the last 400 GD (GD 1000–1400) of a 1,400-GD run, in %/GD:
+
+| Gauge | seed 1 | seed 2 | seed 3 | median | vs 0.29 placeholder |
+|---|---|---|---|---|---|
+| V1 `moneyIndex` | 0.1584 | 0.1946 | 0.1945 | **0.1945** | **0.67×** |
+| money supply (Σ positive NW) | 0.1477 | 0.1332 | 0.0840 | **0.1332** | **0.46×** |
+| bot net worth | — | — | — | **0.2341** | 0.81× |
+
+**The bot grows at ~0.23 %/GD while the money stock grows at 0.08–0.15 %/GD: it is taking share of
+a slow-growing pie, not riding an inflating one.** That is the opposite sign from the AC's
+premise, where drift is the thing that erodes real growth. If the measured MSI drift is ~0.15
+rather than ~0.29, average's real becomes `0.223 − 0.15 = +0.073` — a **profit**, and E-76 (b)
+passes with room instead of failing by 0.3 bp.
+
+**Four caveats, all of which must travel with the hypothesis:**
+
+1. **V1 has no 03 §3.8 MSI at all** (E-42 states it outright). Its `moneyIndex` has a different
+   functional form — no design path, no population-age term, no EMA, constant denominator. It is
+   the closest available object, not the object.
+2. **The MSI drift is not money-supply growth.** `MSI = PEM / design_money`, so its drift is
+   *PEM growth minus design-path growth*. I can measure the first (poorly, above) and **cannot
+   measure the second at all** — `W_target(age)` is the binding unknown and it is what decides the
+   sign. A fast-growing population raises `design_money` and pushes the drift toward zero or
+   negative, which is the same direction as my hypothesis but for a reason I have not measured.
+3. **3 seeds is not a median**, and the probe's 3-seed median (0.2341) is *higher* than E-75's
+   20-seed value (0.223), so the probe **understates** the real loss.
+4. **p10 has no top-end drag in code** (`topend` = 0 occurrences across all 90 refs), so the
+   probe's `g_raw` is the unchecked path.
+
+**Why it matters either way, and what to do with it.** If the drift lands near or below 0.293 the
+cliff is a non-issue and this card is only about correctness. If it lands above, E-76 (b) fails on
+merge. Either way the answer is the same: **build the 03 §3.8 MSI, then measure it** — do not
+pre-tune `msi_drift_per_gd` to make the AC pass. One consequence is Designer's call, not mine: if
+the real drift is ~0.15, the top-end friction barely bites, so the R6 "excellent should need
+excellent play" rationale behind E-76 (b) weakens — that is a design question to ask once the
+number is real.
+
+## 6. Rerun obligation that comes with this card
 
 E-76's rerun rule: *any change to `msi_drift_per_gd` or to mid-book yields re-runs the AC before
 merge.* When T03-24 lands, run:
