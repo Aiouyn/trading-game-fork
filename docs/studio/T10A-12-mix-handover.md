@@ -39,30 +39,46 @@ that two premises have moved.
 
 ### BASIS ERROR — read before using any footprint figure in this record
 
-**Two different polygons, and this record's own table already gets them right** (`verdict.md:309-317`:
-`ALL 1174 — parcel 131/548 | cell 228/848`).
+**Two different polygons, and this record's own table already gets them right.**
 
 | Basis | What it is | Max | Classes unplaceable |
 |---|---|---|---|
-| **Parcel** | the emitted lot, built from **`w × d`** (`generate-city.ts:212`) | **548.7 m²** (n=1174, min 71.9) | **28 of 43** |
-| **Cell** | the subdivision cell **`lw × ld`** — never emitted as a polygon | 848 m² | 23 |
+| **Parcel** | the emitted lot, built from **`w × d`** (`generate-city.ts:212`) — n=1174, min 71.9 | **548.7 m²** | **28 of 43** |
+| Cell | the subdivision cell `lw × ld`, never emitted as a polygon | 848 m² | 23 |
 
 **The PARCEL is the operative basis**, because it is the polygon a facility actually occupies.
 
-**So cite 28, not 23.** An earlier version of this annotation had the labels swapped and told readers to
-cite 23 — which is the *cell* number, and would have replaced a correct figure with a wrong one. qa
-caught that the annotation contradicted the record's own table 260 lines below it.
+**So cite 28, not 23.** An earlier version of this annotation had the two labels swapped and told
+readers to cite 23 — the *cell* number — which would have replaced a correct figure with a wrong one.
 
 **`04-42`'s "23 of 37" should not be quoted as a parcel figure:** it is cell-basis *and* a stale
 37-class universe (43 today) — two errors in one number.
 
-**What survives either way:** the anchors are unplaceable on both bases, so the structural finding holds.
-**Only the count and its label change.**
 
-**And the larger contradiction is recorded separately, not here:** the largest parcel is 548.7 m² and its
-longest side 27.6 m, while E-84 makes `CAMPUS` require ≥ 8,000 m² and frontage ≥ 60 m. **`tech_campus`
-(8,000) and `hl_hospital` (15,000) are unplaceable on footprint alone — the two facilities E-84 was
-written to make placeable.** That deserves its own erratum note.
+**Kept as an annotation rather than a correction**, because this directory exists to preserve what
+Studio produced at the time, not to make it agree with later measurement. A record that is silently
+retro-edited stops being evidence.
+
+**Other findings from qa's review are preserved on the PR as review comments** and are not applied
+here: the permille arithmetic at handover:100, the §4 cell counts, the disposition omissions, and the
+stale "QA not to approve until Quant has spoken" line at handover:507 (Quant's ruling is in the card
+as INV-PLC-4 / AC-NO-ECON clause 2).
+
+
+## 0. Why this document exists
+
+The Producer accepted the Studio review in full and authorised exactly two number changes. The
+rest of the ruling is **card text**, and the card is the Designer's file. This document is the
+card-ready text for every item the Producer approved, plus the two numbers, with everything
+re-measured against the tree as it stands at 05:30.
+
+**Nothing here needs the owner's call.** Every item below is a card-text or table change the
+Producer has already ruled on. The Designer can apply items 1–8 verbatim.
+
+**Read item 4 before item 1.** The unit statement changes what the numbers *mean*, and finding 4
+shows that on the reference map 28 of the 67 non-zero cells have **no placeable carrier at all**.
+That is not a defect in the mix table; it is a fact about the reference map's parcel sizes, and it
+is the same fact as item 6.
 
 ---
 

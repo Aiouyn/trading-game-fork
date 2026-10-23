@@ -43,30 +43,83 @@ count than at another. Two of the eight rows are arithmetically unreachable at t
 
 ### BASIS ERROR — read before using any footprint figure in this record
 
-**Two different polygons, and this record's own table already gets them right** (`verdict.md:309-317`:
-`ALL 1174 — parcel 131/548 | cell 228/848`).
+**Two different polygons, and this record's own table already gets them right.**
 
 | Basis | What it is | Max | Classes unplaceable |
 |---|---|---|---|
-| **Parcel** | the emitted lot, built from **`w × d`** (`generate-city.ts:212`) | **548.7 m²** (n=1174, min 71.9) | **28 of 43** |
-| **Cell** | the subdivision cell **`lw × ld`** — never emitted as a polygon | 848 m² | 23 |
+| **Parcel** | the emitted lot, built from **`w × d`** (`generate-city.ts:212`) — n=1174, min 71.9 | **548.7 m²** | **28 of 43** |
+| Cell | the subdivision cell `lw × ld`, never emitted as a polygon | 848 m² | 23 |
 
 **The PARCEL is the operative basis**, because it is the polygon a facility actually occupies.
 
-**So cite 28, not 23.** An earlier version of this annotation had the labels swapped and told readers to
-cite 23 — which is the *cell* number, and would have replaced a correct figure with a wrong one. qa
-caught that the annotation contradicted the record's own table 260 lines below it.
+**So cite 28, not 23.** An earlier version of this annotation had the two labels swapped and told
+readers to cite 23 — the *cell* number — which would have replaced a correct figure with a wrong one.
+It also contradicted the record's own table (`ALL 1174 — parcel 131/548 | cell 228/848`), which had it
+right all along. Cite that table by its content, not by line number: line numbers in this file shift
+whenever an annotation is edited.
 
 **`04-42`'s "23 of 37" should not be quoted as a parcel figure:** it is cell-basis *and* a stale
 37-class universe (43 today) — two errors in one number.
 
-**What survives either way:** the anchors are unplaceable on both bases, so the structural finding holds.
-**Only the count and its label change.**
 
-**And the larger contradiction is recorded separately, not here:** the largest parcel is 548.7 m² and its
-longest side 27.6 m, while E-84 makes `CAMPUS` require ≥ 8,000 m² and frontage ≥ 60 m. **`tech_campus`
-(8,000) and `hl_hospital` (15,000) are unplaceable on footprint alone — the two facilities E-84 was
-written to make placeable.** That deserves its own erratum note.
+**Kept as an annotation rather than a correction**, because this directory exists to preserve what
+Studio produced at the time, not to make it agree with later measurement. A record that is silently
+retro-edited stops being evidence.
+
+**Other findings from qa's review are preserved on the PR as review comments** and are not applied
+here: the permille arithmetic at handover:100, the §4 cell counts, the disposition omissions, and the
+stale "QA not to approve until Quant has spoken" line at handover:507 (Quant's ruling is in the card
+as INV-PLC-4 / AC-NO-ECON clause 2).
+
+
+## 1. What I verified myself (not taken on trust)
+
+I re-derived the Producer's cell-by-cell diff from the pre-recut card in git rather than from the
+summary, and re-ran the biconditional against City Dev's in-flight `rules.ts`.
+
+**Pre-recut prose** (`git show a90874ba597a:export/build-plan/cards/10A/T10A-12.md`, line 144) is
+exactly as the Producer described: one prose line, `PROVISIONAL [Quant/Studio]`, with `other 50` in PORT
+and `other 60` in INDUSTRIAL, and no HEALTH/LOGISTICS/MANUFACTURING for CBD.
+
+**The re-cut table, parsed from the card** (8 rows × 13 sectors = 104 cells):
+
+```
+row           sum    zero cells
+CBD           1000   3
+PORT          1000   8
+INDUSTRIAL    1000   4
+MIXED_CORE    1000   4
+MIXED_RIVER   1000   2
+TRANSIT_HUB   1000   3
+PRIME_RES     1000   4
+TROPHY_RES    1000   9
+total cells 104 | zero cells 37 | rows not summing to 1000: 0
+```
+
+**37 zero cells — matches Quant and the Producer exactly.** All 8 rows sum to 1000. The Producer's
+correction stands and I confirm it: the old CBD row did sum to exactly 1000 with no "other" bucket, so
+the Designer's self-correction was right.
+
+**The diff, re-derived from the pre-recut prose:** I count **7 cells changed in value**, not 8. The
+Producer counted 8 by also counting the removal of the `OTHER_BUCKET` from PORT. On the "cells changed
+value" reading it is 7 (CBD 6: ENERGY 40→35, HEALTH absent→80, LUXURY 80→70, MEDIA 50→45, MINING
+30→25, REAL_ESTATE 70→65, RETAIL 50→0; PORT 1: FOOD 50→0; INDUSTRIAL 0). The 8th is the bucket removal.
+**This is a counting-convention difference, not a disagreement about the table** — flagging it only so
+nobody re-litigates it later. 5 newly listed, 2 "other" buckets gone: all confirmed.
+
+**Biconditional, re-run against the current code: 0 violations across 104 cells.** Quant's result holds
+against the *code* as well as against the card, not just the card's "Allowed roles" column. (I raised
+one violation mid-review — `TROPHY_RES × SECURITY_LEGAL_INTEL 0` — and City Dev amended `rules.ts` at
+04:48 to exclude TROPHY_RES from `sl_law_firm` and `sl_cyber`. It is fixed in the in-flight code; no
+action needed from the Designer on that cell.)
+
+**One card-vs-code divergence remains, and it is a card-text fix, not a number:** the card's sector
+rules table gives FOOD_HOSPITALITY's allowed roles as *MIXED_CORE, CBD, TRANSIT_HUB + MIXED_RIVER,
+PRIME_RES* — it does not name TROPHY_RES. The code allows `fh_restaurant` in TROPHY_RES (one per
+district). The mix's `TROPHY_RES × FOOD_HOSPITALITY 80` cell depends on that, and the card's own
+sentence *("nothing in TROPHY_RES except one `fh_restaurant` per district")* lives in the **hard
+exclusions** column, not the allowed-roles column. So the card is self-consistent in prose but the two
+columns disagree with the code. Worth one line in the card; not a numbers change.
 
 ---
 
