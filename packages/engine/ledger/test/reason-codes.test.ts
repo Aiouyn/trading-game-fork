@@ -70,11 +70,15 @@ export function callArguments(text: string, open: number): string[] {
   return args;                                   // unbalanced source: the caller's parse is not a finding
 }
 
-/** A single-quoted string literal argument, or null. Templates and concatenations are not literals we can read. */
+/**
+ * A quoted string literal argument, or null. Both quote styles are read: nothing in this repo enforces
+ * single quotes (no prettier, no `quotes` rule), so `"MKT_TRADE"` is as reachable as `'MKT_TRADE'`.
+ * Templates and concatenations are not literals we can read.
+ */
 const literal = (arg: string | undefined): string | null => {
   if (arg === undefined) return null;
-  const m = /^'([^'\\]*)'$/.exec(arg.trim());
-  return m === null ? null : m[1];
+  const m = /^(['"])([^'"\\]*)\1$/.exec(arg.trim());
+  return m === null ? null : m[2];
 };
 
 /** Every `ledger.<method>(` call with a literal code argument, checked against `catalog`. */
@@ -163,6 +167,23 @@ describe('03#1 reason-code scanner', () => {
     const text = "ctx.ledger.pay(f(a, b), g('x,y'), 1n, 'FDL', 'MKT_TRADE');";
     const open = text.indexOf('(', text.indexOf('ledger.pay'));
     expect(callArguments(text, open)).toEqual(['f(a, b)', "g('x,y')", '1n', "'FDL'", "'MKT_TRADE'"]);
+  });
+
+  it('reads a double-quoted literal too — nothing in the repo enforces single quotes', () => {
+    const src: SourceFile[] = [{ path: 'packages/engine/ledger/src/x.ts', text: 'import { a } from \'./y\';\nctx.ledger.pay(a, b, x, "FDL", "MKT_TRADE");' }];
+    const findings = scanReasonCodes(src, catalog);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].code).toBe('MKT_TRADE');
+    expect(findings[0].line).toBe(2);              // the call's own line, not the file's first
+    expect(findings[0].problems.join(' ')).toContain('owned by module 5');
+  });
+
+  it('rejects a code the catalog does not know', () => {
+    const src: SourceFile[] = [{ path: 'packages/engine/ledger/src/x.ts', text: "ctx.ledger.mint(a, x, 'FDL', 'NOT_A_CODE');" }];
+    const findings = scanReasonCodes(src, catalog);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].line).toBe(1);
+    expect(findings[0].problems.join(' ')).toContain('UNKNOWN_CODE NOT_A_CODE is not in the catalog');
   });
 
   it('every literal reason code in packages/engine/**/*.ts is postable by the module that writes it', () => {
