@@ -22,6 +22,10 @@ export interface RailState {
   restrictedLots(entityId: Id, ccy: Ccy): readonly { accountKey: string; releaseTick: Tick; balance: Money }[];
   bookValueOf(accountKey: string, qty: Qty): Money;
   balance(accountKey: string): Money;
+  /** E-79 point 5: the entity's 1010 deposit accounts (03 §3.2 code 1010), sorted by bank id then term sub. */
+  depositAccounts(entityId: Id, ccy: Ccy): readonly string[];
+  /** E-79 point 5: the BANK_FROZEN fact (03 §8 edge 2). A frozen bank's deposits pay nothing and receive nothing from N+1. */
+  bankFrozen(bankId: Id): boolean;
 }
 export interface TemplateEnv {
   tick: Tick; catalog: ReasonCatalog; rail: RailState;
