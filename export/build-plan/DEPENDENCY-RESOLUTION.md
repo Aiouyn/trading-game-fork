@@ -394,7 +394,7 @@ Grouped by placeholder. Every row is listed with its category so the next pass d
 | T19D-09 | `no-annotation` | no Imports bullet for this placeholder |
 | T20B-06 | `unshipped` | named symbol(s) in no card of the stage: acct, life |
 | T20B-08 | `no-annotation` | no Imports bullet for this placeholder |
-| T20B-09 | `certain-multi` | ops intents (`ops.plan`, `ops.launch`, `ops.cancel`), op EV display view, laundering intent per 12 rules, target eligibi |
+| T20B-09 | `deliberate` | no symbol to match - the bullet lists intents (ops.plan, ops.launch, ops.cancel), not symbols |
 | T20B-13 | `no-symbols` | op records (tier, solo or coordinated, AP vs DP_eff, breach, detection, attribution), hostile session records (lifetime, P series, disconnects, offline stretche |
 
 ### `T15B-??` - 8 rows
@@ -420,7 +420,7 @@ Grouped by placeholder. Every row is listed with its category so the next pass d
 | T09B-09 | `no-annotation` | no Imports bullet for this placeholder |
 | T10B-03 | `no-symbols` | P2P transfer tax 2% and contract fee 0.5%, collusion cluster query. |
 | T20B-06 | `no-annotation` | no Imports bullet for this placeholder |
-| T20B-07 | `certain` | `soc.contract.offer`, `soc.contract.sign`, P2P transfer intent and its cap view; `soc.filing.submit`. T15B-??: league an |
+| T20B-07 | `deliberate` | no symbol to match - the bullet lists intents (soc.contract.offer, soc.contract.sign, soc.filing.submit), not symbols |
 
 ### `T19C-??` - 7 rows
 
@@ -430,7 +430,7 @@ Grouped by placeholder. Every row is listed with its category so the next pass d
 | T20B-02 | `no-annotation` | no Imports bullet for this placeholder |
 | T20B-04 | `no-symbols` | the client Web Worker engine bundle entry (`apps/web/worker/engine.worker.ts`) used by the sandbox. |
 | T20B-14 | `no-annotation` | no Imports bullet for this placeholder |
-| T20B-18 | `certain-multi` | read request plumbing (`req` messages) and the daily signed bulletin data. T21-??: support ticket creation (category EXP |
+| T20B-18 | `deliberate` | no symbol to match - the bullet names `req` message plumbing, not a symbol |
 | T20B-19 | `no-annotation` | no Imports bullet for this placeholder |
 | T20B-20 | `no-annotation` | no Imports bullet for this placeholder |
 
@@ -449,7 +449,7 @@ Grouped by placeholder. Every row is listed with its category so the next pass d
 
 | Card | Category | Detail |
 |---|---|---|
-| T06B-01 | `certain-multi` | `ClearingService` mapping only (types); `registerClearedProduct(cls, service)` if 07B exposes a product registry (else n |
+| T06B-01 | `deliberate` | two plausible owners for the interface - ClearingService is named by T07B-01 and T07B-06; registerClearedProduct is T07B-01 only |
 | T06B-06 | `unshipped` | named symbol(s) in no card of the stage: liquidateExcess |
 | T06B-07 | `unshipped` | named symbol(s) in no card of the stage: oraclePrice |
 | T06B-08 | `unshipped` | named symbol(s) in no card of the stage: borrowFee |
@@ -472,10 +472,10 @@ Grouped by placeholder. Every row is listed with its category so the next pass d
 | Card | Category | Detail |
 |---|---|---|
 | T02-08 | `unshipped` | named symbol(s) in no card of the stage: IntentEnvelopeSchema |
-| T02-11 | `certain` | zod 4 (`import type { ZodType } from 'zod'`). |
+| T02-11 | `deliberate` | no card to resolve to - the bullet names `zod 4` / `ZodType`, a library import, not a symbol any card ships |
 | T20A-01 | `no-symbols` | workspace package `@tycoon/engine` skeleton with `packages/engine/core` folder, vitest preset, determinism lint (the files here obey it). Nothing else. Do NOT i |
 | T20A-03 | `unshipped` | named symbol(s) in no card of the stage: InvariantViolation, ShrunkCase |
-| T20A-06 | `certain` | workspace layout, `packages/i18n/{en,fr}` catalogue location and key format, the TypeScript compiler API (`typescript` d |
+| T20A-06 | `deliberate` | no card to resolve to - the bullet names the `typescript` compiler API (a devDependency), not a symbol |
 | T20B-05 | `unshipped` | named symbol(s) in no card of the stage: checkBoundaries |
 
 ### `T19B-??` - 5 rows
