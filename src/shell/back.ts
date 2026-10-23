@@ -19,6 +19,35 @@ type Entry = PhoneEntry | DeskEntry;
 export const urlOf = (w: Pick<WindowRect, "app" | "context"> | null | undefined, screen?: string) =>
   !w ? "/" : `/${w.app}${screen ? `/${screen}` : ""}${w.context ? `?asset=${encodeURIComponent(w.context)}` : ""}`;
 
+/**
+ * The App Router owns the URL; the shell's history mirror must not fight it.
+ *
+ * A deep link is a two-segment route (`/{app}/{screen}`, e.g. /settings/SET-08 — 17B SET-01). The mirror used
+ * to write the shorter `/{app}` for the focused window, so it overwrote the router's URL: the deep link was
+ * lost, and because Next patches `history.pushState` / `replaceState` to sync its own router state, the
+ * router's state was clobbered too. That is what made the S1-02 / boot-once e2e flaky (17B S1-02).
+ *
+ * The mirror therefore mirrors the router's *live* URL whenever the router is showing the same app: the
+ * live URL carries the screen segment and the query, and the mirror must not shorten or strip either.
+ * The live URL is read at write time, so it can never be a stale snapshot of an earlier route.
+ */
+const livePath = () => (typeof location === "undefined" ? "" : location.pathname);
+const liveSearch = () => (typeof location === "undefined" ? "" : location.search);
+
+/** The URL the mirror writes for a focused window: the router's own live URL when it shows the same app. */
+const mirrorUrl = (w: Pick<WindowRect, "app" | "context"> | null | undefined): string => {
+  if (!w) return "/";
+  const path = livePath();
+  // The router is showing this app (first path segment): keep its route, only the asset is the mirror's own.
+  const same = path === `/${w.app}` || path.startsWith(`/${w.app}/`);
+  if (!same) return urlOf(w);
+  const q = new URLSearchParams(liveSearch());
+  if (w.context) q.set("asset", w.context);
+  else q.delete("asset");
+  const query = q.toString();
+  return `${path}${query ? `?${query}` : ""}`;
+};
+
 // Current phone in-app screen (level 2), readable by PhoneHome.
 let screen: string | null = null;
 const listeners = new Set<() => void>();
@@ -60,7 +89,7 @@ export function seedHistory(store: ShellStore, screenId?: string): void {
     if (screenId) { setScreen(screenId); write({ quay: "phone", lvl: 2, app: a.app, context: a.context, screen: screenId }, withLoadQuery(urlOf(a, screenId))); }
   } else {
     const f = focusedOf(st);
-    write({ quay: "desk", app: f?.app, instance: f?.instance }, withLoadQuery(urlOf(f)), true);
+    write({ quay: "desk", app: f?.app, instance: f?.instance }, withLoadQuery(mirrorUrl(f)), true);
   }
 }
 
@@ -84,8 +113,8 @@ export function useBackStack(store: ShellStore): void {
         return;
       }
       const f = focusedOf(st), pf = focusedOf(prev);
-      if (f && (!pf || f.app !== pf.app || f.instance !== pf.instance)) push({ quay: "desk", app: f.app, instance: f.instance }, urlOf(f));
-      else if (f && pf && f.context !== pf.context) push({ quay: "desk", app: f.app, instance: f.instance }, urlOf(f), true);
+      if (f && (!pf || f.app !== pf.app || f.instance !== pf.instance)) push({ quay: "desk", app: f.app, instance: f.instance }, mirrorUrl(f));
+      else if (f && pf && f.context !== pf.context) push({ quay: "desk", app: f.app, instance: f.instance }, mirrorUrl(f), true);
     });
 
     const onPop = () => {
