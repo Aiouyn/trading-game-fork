@@ -23,7 +23,7 @@
 | 17 | [ ] | T20A-04 | S0 | 20A | Harness world spec, test-agent and run types, headless runner loop and run-file format | T20A-01, T20A-03, T19A-?? | 16291 | 900 |
 | 18 | [ ] | T20A-05 | S0 | 20A | Band, finding and gate framework (band evaluation, evidence grouping, waiver rules) | T20A-03, T20A-04 | 16626 | 1000 |
 | 19 | [ ] | T20A-06 | S0 | 20A | Static invariant checkers INV-STR-006, INV-STR-008, INV-STR-009 | T20A-01, T20A-05, T19A-?? | 13685 | 1000 |
-| 20 | [ ] | T02-01 | S0 | 02 | Core primitives - types, SortedMap/SortedSet, cmpStr, sortBy, sha256, hmac, fnv1a32, canon re-export, lint fixtures | T19A-?? | 10176 | 1100 |
+| 20 | [ ] | T02-01 | S0 | 02 | Core primitives - types, SortedMap/SortedSet, cmpStr, sortBy, sha256, hmac, fnv1a32, canon re-export, lint fixtures | T19A-02 | 11374 | 1100 |
 | 21 | [ ] | T02-02 | S0 | 02 | dmath part 1 - exp, ln, log2, log10, pow, expm1, log1p, tanh, sigmoid, kahanSum, clamp, lerp, and the bigint reference generator | T02-01 | 12475 | 1300 |
 | 22 | [ ] | T02-03 | S0 | 02 | dmath part 2 - sin, cos, atan, atan2, erf, erfc, normCdf, normInv, lgamma, Black-Scholes, fixed-iteration solvers, Cholesky | T02-01, T02-02 | 11788 | 1400 |
 | 23 | [ ] | T02-04 | S0 | 02 | Fixed-point and money conversion - roundHalfEven, toMoney/toQty/toPrice, bigint helpers, allocate, proRata | T02-01 | 11410 | 600 |
@@ -33,7 +33,7 @@
 | 27 | [ ] | T02-08 | S0 | 02 | Intent sealing - envelope checks (replay, stale, rate limit), fair orderKey ordering with per-actor nonce runs, batch assembly | T02-01, T02-07, T23-??, T19A-?? | 13144 | 900 |
 | 28 | [x] | T02-09 | S0 | 02 | Store - table registry, ownership, undo log, phase stamps, write set, entity hashes, logicalStateHash and partition stateHash | T02-01, T02-04, T20A-01 | 13724 | 1300 |
 | 29 | [ ] | T02-10 | S0 | 02 | Snapshot codec - canonical chunks, manifest, verified load with fallback, cadence and retention rules | T02-01, T02-05, T02-06, T02-09 | 13362 | 750 |
-| 30 | [x] | T02-11 | S0 | 02 | Module contract - PhaseCtx, ValidateCtx, IntentHandler, ViewHandler, ModuleDef/defineModule, module registry, LedgerProvider port | T02-01, T02-05, T02-06, T02-07, T02-08, T02-09, T20A-01, T23-??, T22A-??, T19A-?? | 18946 | 800 |
+| 30 | [x] | T02-11 | S0 | 02 | Module contract - PhaseCtx, ValidateCtx, IntentHandler, ViewHandler, ModuleDef/defineModule, module registry, LedgerProvider port | T02-01, T02-05, T02-06, T02-07, T02-08, T02-09, T20A-01, T23-??, T22A-01, T19A-?? | 20143 | 800 |
 | 31 | [ ] | T02-12 | S0 | 02 | Pipeline runner (single partition) - P0 to P14, intent dispatch, phase contexts, P13 prepare/commit/abort, event sequencing | T02-05, T02-06, T02-07, T02-08, T02-09, T02-11, T20A-01, T23-??, T22A-?? | 22084 | 1500 |
 | 32 | [ ] | T02-13 | S0 | 02 | Boundary hooks, consequences next tick, core event schemas, delta visibility filter | T02-05, T02-11, T02-12, T20A-01 | 17234 | 1000 |
 | 33 | [ ] | T02-14 | S0 | 02 | Partitions in-process - partition kinds and homes, rounds R0-R6 with barriers B1-B3, message routing, worldHash, partition-equivalence check | T02-01, T02-09, T02-11, T02-12, T02-13, T20A-01, T20A-04 | 22043 | 1500 |
@@ -92,7 +92,7 @@
 | 86 | [ ] | T04-16 | S1 | 04 | Macro data releases - calendar rows, true values per kind, NPC consensus a day ahead, measurement error and revisions, surprise and risk reaction, public prints, research nowcasts, named-economist hook | T04-01, T04-02, T04-04, T04-05, T04-07, T04-10, T04-14, T04-15 | 25587 | 1000 |
 | 87 | [ ] | T04-17 | S1 | 04 | Crisis scheduler - ripples, storms, majors with vulnerability-weighted rate, crisis weeks, constraints, UTC band rotation, phases and their public view | T04-01, T04-02, T04-15, T04-18 | 24299 | 1000 |
 | 88 | [ ] | T04-18 | S1 | 04 | Crisis catalog - eligibility and vulnerability of the 15 majors, storm and ripple effects, shock vectors and shapes, hooks other modules implement, crisis-specific responses, emergent crisis labels, calibration outcomes | T04-01, T04-03, T04-08, T04-09, T04-10, T04-14, T04-15 | 26492 | 1400 |
-| 89 | [ ] | T05-01 | S2 | 05 | Market schema, tables, ports to later modules, event schemas and class defaults | T03-??, T04-?? | 18501 | 1100 |
+| 89 | [ ] | T05-01 | S2 | 05 | Market schema, tables, ports to later modules, event schemas and class defaults | T03-02, T03-03, T03-08, T04-01 | 25285 | 1100 |
 | 90 | [ ] | T05-02 | S2 | 05 | Sessions, active clocks, trading-state schedule and opening/closing auction rules | T05-01 | 15318 | 700 |
 | 91 | [ ] | T05-03 | S2 | 05 | Value layer (per-tick lnV step, factor model, GARCH, regimes, crisis correlation, shocks, world hooks) | T05-01, T05-02, T04-?? | 20034 | 1300 |
 | 92 | [ ] | T05-04 | S2 | 05 | NPC market maker (reference price, square-root ladder, shared tally, transient impact, inventory, lnB following value) | T05-01, T05-02, T05-03, T04-?? | 19784 | 1000 |
@@ -101,28 +101,28 @@
 | 95 | [ ] | T05-07 | S2 | 05 | Price bands, volatility interruptions, single-asset halts, market-wide circuit breakers, futures limits | T05-01, T05-02, T05-05 | 18135 | 1000 |
 | 96 | [ ] | T05-08 | S2 | 05 | Model ADV, background volume and the intraday volume profile | T05-01, T05-02, T05-03, T04-?? | 16701 | 600 |
 | 97 | [ ] | T05-09 | S2 | 05 | Order types, time in force, flags, OCO and brackets, triggers, market-order protection, icebergs and modification | T05-01, T05-02, T05-07 | 18266 | 1100 |
-| 98 | [ ] | T05-10 | S2 | 05 | Fees, volume tiers, message fee, transaction levy and settlement postings | T05-01, T05-02, T03-??, T04-?? | 17149 | 1000 |
-| 99 | [ ] | T05-11 | S2 | 05 | Pre-trade validation (P1), position and market limits, auto-split, and the order intents | T05-01, T05-02, T05-07, T05-08, T05-09, T05-10, T14A-??, T13A-??, T03-?? | 22165 | 1400 |
+| 98 | [ ] | T05-10 | S2 | 05 | Fees, volume tiers, message fee, transaction levy and settlement postings | T05-01, T05-02, T03-02, T03-03, T03-08, T03-09, T04-?? | 20462 | 1000 |
+| 99 | [ ] | T05-11 | S2 | 05 | Pre-trade validation (P1), position and market limits, auto-split, and the order intents | T05-01, T05-02, T05-07, T05-08, T05-09, T05-10, T14A-07, T13A-06, T03-08, T03-09 | 25595 | 1400 |
 | 100 | [ ] | T05-12 | S2 | 05 | FX books, autoFx legs, cross-currency orders, capital controls and multi-leg derivative packages | T05-01, T05-06, T05-10, T05-11, T04-?? | 17968 | 900 |
-| 101 | [ ] | T05-13 | S2 | 05 | Execution algorithms (TWAP, VWAP, POV, IS) and the algo intents | T05-01, T05-02, T05-07, T05-08, T05-11, T14A-?? | 17415 | 800 |
+| 101 | [ ] | T05-13 | S2 | 05 | Execution algorithms (TWAP, VWAP, POV, IS) and the algo intents | T05-01, T05-02, T05-07, T05-08, T05-11, T14A-07 | 17997 | 800 |
 | 102 | [ ] | T05-14 | S2 | 05 | NPC trader pools and external NPC flows (CB, treasury, liquidation, mandate, fund flows, sell programs) | T05-01, T05-03, T05-04, T05-07, T05-08, T04-?? | 20317 | 1300 |
 | 103 | [ ] | T05-15 | S2 | 05 | Belief model (claims, rumors, credibility, overlay b, resolution and hand-off) | T05-01, T05-03, T05-04 | 17672 | 700 |
 | 104 | [ ] | T05-16 | S2 | 05 | Cause vectors, gap tracer, explainMove, k-anonymity and priced-in bands ("Why it moved") | T05-01, T05-03, T05-04, T05-06, T05-15 | 18572 | 1200 |
 | 105 | [ ] | T05-17 | S2 | 05 | Surveillance features F1-F15, evidence references and the daily surveillance score | T05-01, T05-06, T05-10, T05-11, T05-15 | 18296 | 1400 |
-| 106 | [ ] | T05-18 | S2 | 05 | Registered market makers (registration, quotes, obligations, rebates, crowding) and block crosses | T05-01, T05-02, T05-04, T05-06, T05-10, T05-11, T14A-?? | 19238 | 1000 |
+| 106 | [ ] | T05-18 | S2 | 05 | Registered market makers (registration, quotes, obligations, rebates, crowding) and block crosses | T05-01, T05-02, T05-04, T05-06, T05-10, T05-11, T14A-07 | 19819 | 1000 |
 | 107 | [ ] | T05-19 | S2 | 05 | Instrument lifecycle and corporate actions, index computation and the bond market depth index | T05-01, T05-03, T05-04, T05-07, T05-09, T05-11 | 19533 | 1000 |
-| 108 | [ ] | T05-20 | S2 | 05 | Market data publication (book, tape, ticker, daily statistics), engine read API and views for screens and downstream modules | T05-01, T05-02, T05-04, T05-08, T05-11, T05-16, T05-19, T14A-?? | 20202 | 1300 |
-| 109 | [ ] | T05-21 | S2 | 05 | Risk API (VaR, ES, exposures, LVaR, stress), pre-trade preview and execution analytics | T05-01, T05-03, T05-04, T05-07, T05-10, T05-13, T05-20, T14A-?? | 19111 | 1200 |
+| 108 | [ ] | T05-20 | S2 | 05 | Market data publication (book, tape, ticker, daily statistics), engine read API and views for screens and downstream modules | T05-01, T05-02, T05-04, T05-08, T05-11, T05-16, T05-19, T14A-07 | 20784 | 1300 |
+| 109 | [ ] | T05-21 | S2 | 05 | Risk API (VaR, ES, exposures, LVaR, stress), pre-trade preview and execution analytics | T05-01, T05-03, T05-04, T05-07, T05-10, T05-13, T05-20, T14A-07 | 19692 | 1200 |
 | 110 | [ ] | T05-22 | S2 | 05 | Tick pipeline wiring of module 05 (P1-P14 placement, sub-phases 6.0/6a/6b/6c/6d, boundaries, determinism and performance) | T05-01, T05-02, T05-03, T05-04, T05-05, T05-06, T05-07, T05-08, T05-09, T05-10, T05-11, T05-12, T05-13, T05-14, T05-15, T05-16, T05-17, T05-18, T05-19, T05-20, T05-21 | 28483 | 1100 |
-| 111 | [ ] | T05-23 | S2 | 05 | Module assembly (index.ts, params.ts, invariants.ts, genesis) and 05 integration acceptance tests | T05-01, T05-05, T05-06, T05-07, T05-11, T05-12, T05-13, T05-18, T05-19, T05-20, T05-21, T05-22, T03-??, T04-??, T14A-??, T13A-?? | 27152 | 1300 |
-| 112 | [ ] | T06A-01 | S2 | 06A | Asset schema, tables, ids, ports, price parameters and the 400-instrument launch universe | T05-01, T05-20, T03-??, T04-?? | 41996 | 1400 |
-| 113 | [ ] | T06A-02 | S2 | 06A | License gates, sessions, T+0 settlement, mark price and beneficial-owner limits | T06A-01, T05-01, T05-20, T14A-??, T13A-??, T03-?? | 22854 | 1100 |
+| 111 | [ ] | T05-23 | S2 | 05 | Module assembly (index.ts, params.ts, invariants.ts, genesis) and 05 integration acceptance tests | T05-01, T05-05, T05-06, T05-07, T05-11, T05-12, T05-13, T05-18, T05-19, T05-20, T05-21, T05-22, T03-08, T04-??, T14A-11, T13A-?? | 29041 | 1300 |
+| 112 | [ ] | T06A-01 | S2 | 06A | Asset schema, tables, ids, ports, price parameters and the 400-instrument launch universe | T05-01, T05-20, T03-08, T04-01 | 48006 | 1400 |
+| 113 | [ ] | T06A-02 | S2 | 06A | License gates, sessions, T+0 settlement, mark price and beneficial-owner limits | T06A-01, T05-01, T05-20, T14A-07, T14A-08, T13A-??, T03-?? | 24075 | 1100 |
 | 114 | [ ] | T06A-03 | S2 | 06A | Equity fundamental value V and the anchor feed to 05 | T06A-01, T05-20, T04-?? | 15063 | 650 |
 | 115 | [ ] | T06A-04 | S2 | 06A | Earnings cycle (schedule, consensus, surprise, revision, targeted jump, blackout) | T06A-01, T06A-03, T05-01, T05-20 | 18708 | 700 |
 | 116 | [ ] | T06A-05 | S2 | 06A | Cash and stock dividends, DRIP, manufactured dividends, splits and reverse splits | T06A-01, T06A-02, T06A-03, T05-01, T05-19, T05-20, T03-?? | 20811 | 900 |
 | 117 | [ ] | T06A-06 | S2 | 06A | Tenders, mergers, spin-offs, bankruptcy, delisting, short-selling hooks and the DISTRESSED call auction | T06A-01, T06A-02, T06A-03, T06A-05, T05-01, T05-20, T03-?? | 21047 | 1200 |
 | 118 | [ ] | T06A-07 | S2 | 06A | Indices (levels, divisors, rebalances) and ETF NAV, iNAV and expense accrual | T06A-01, T06A-02, T06A-05, T06A-06, T05-20 | 17685 | 1000 |
-| 119 | [ ] | T06A-08 | S2 | 06A | Government and corporate bond pricing, linkers, FRNs, bills, coupons and maturities | T06A-01, T06A-02, T06A-03, T04-??, T03-?? | 14533 | 1100 |
+| 119 | [ ] | T06A-08 | S2 | 06A | Government and corporate bond pricing, linkers, FRNs, bills, coupons and maturities | T06A-01, T06A-02, T06A-03, T04-??, T03-08 | 16097 | 1100 |
 | 120 | [ ] | T06A-09 | S2 | 06A | Primary issuance auctions (sovereign, corporate, bank, secondary equity) and NPC primary dealers | T06A-01, T06A-02, T06A-08, T04-?? | 15185 | 900 |
 | 121 | [ ] | T06A-10 | S2 | 06A | Corporate credit model (Merton PD, bank and sovereign PD, spreads), mechanical default and callable bonds | T06A-01, T06A-02, T06A-06, T06A-08, T05-20, T04-?? | 17875 | 1100 |
 | 122 | [ ] | T06A-11 | S2 | 06A | FX pairs, leg fundamentals and carry, cross consistency, CIP forwards and capital-control enforcement | T06A-01, T06A-02, T05-01, T05-20, T04-?? | 20701 | 800 |
@@ -132,33 +132,33 @@
 | 126 | [ ] | T06A-15 | S2 | 06A | OTC RFQ protocol (requests, NPC and player dealer quotes, accept, fills, prints) and the LIC4 block desk | T06A-01, T06A-02, T06A-04, T05-01, T05-20, T04-?? | 20413 | 1100 |
 | 127 | [ ] | T06A-16 | S2 | 06A | 05 InstrumentPort implementation (listed specs, anchors, price params, shocks, corporate actions, gates) and index-fund flows | T06A-01, T06A-02, T06A-03, T06A-04, T06A-05, T06A-06, T06A-07, T06A-08, T06A-10, T06A-11, T06A-13, T05-01, T05-20 | 25870 | 700 |
 | 128 | [ ] | T06A-17 | S2 | 06A | Spot-asset views for the screens (asset page panels, screener, calendars, rates, FX, commodities, auctions, collection) | T06A-01, T06A-02, T06A-03, T06A-04, T06A-05, T06A-07, T06A-08, T06A-09, T06A-10, T06A-11, T06A-12, T06A-13, T06A-14, T06A-15, T05-20 | 22941 | 900 |
-| 129 | [ ] | T06A-18 | S2 | 06A | Unit 06A module assembly (defineModule, params, phases, intents, events, INV-BS-003, genesis, integration) | T06A-01, T06A-02, T06A-03, T06A-04, T06A-05, T06A-06, T06A-07, T06A-08, T06A-09, T06A-10, T06A-11, T06A-12, T06A-13, T06A-14, T06A-15, T06A-16, T06A-17, T05-23, T03-?? | 25032 | 900 |
+| 129 | [ ] | T06A-18 | S2 | 06A | Unit 06A module assembly (defineModule, params, phases, intents, events, INV-BS-003, genesis, integration) | T06A-01, T06A-02, T06A-03, T06A-04, T06A-05, T06A-06, T06A-07, T06A-08, T06A-09, T06A-10, T06A-11, T06A-12, T06A-13, T06A-14, T06A-15, T06A-16, T06A-17, T05-23, T03-08, T03-28 | 27219 | 900 |
 | 130 | [ ] | T06B-01 | S2 | 06B | Derivative schema, tables, events, listing grids and lazy series materialization | T06A-01, T06A-02, T06A-07, T05-20, T07B-?? | 18134 | 1100 |
 | 131 | [ ] | T06B-02 | S2 | 06B | Option pricing (Black-Scholes, Black-76, Garman-Kohlhagen, CRR 128 with escrowed dividends), near-expiry rule, greeks cache and the OPTION model valuer | T06B-01, T06A-01, T06A-02, T05-20, T04-?? | 16065 | 800 |
 | 132 | [ ] | T06B-03 | S2 | 06B | Implied vol surface, no-arbitrage guards, NPC options dealers (quotes, inventory, delta hedging), put-call parity arbitrage and pinning surveillance | T06B-01, T06B-02, T06A-02, T06A-11, T06A-16, T05-01, T05-20, T04-?? | 21689 | 1300 |
 | 133 | [ ] | T06B-04 | S2 | 06B | GX Volatility Index (variance-swap formula over the bracketing GX100 expiries), fear accessor audit and publication | T06B-01, T06B-02, T06B-03, T05-20, T04-?? | 13076 | 450 |
-| 134 | [ ] | T06B-05 | S2 | 06B | Option exercise, automatic exercise at expiry, deterministic pro-rata assignment, settlement prices and corporate-action adjustments | T06B-01, T06B-02, T06A-01, T06A-02, T06A-05, T06A-06, T05-20, T03-??, T07B-?? | 19698 | 1000 |
-| 135 | [ ] | T06B-06 | S2 | 06B | Futures (fair value and anchors, daily settlement, last trade and expiry, physical delivery elections, position limits, basis arbitrage, NPC hedgers) | T06B-01, T06B-04, T06A-01, T06A-02, T06A-07, T06A-08, T06A-11, T06A-12, T06A-13, T06A-16, T05-01, T05-20, T04-??, T07B-??, T03-?? | 26968 | 1300 |
-| 136 | [ ] | T06B-07 | S2 | 06B | Perpetual swaps (index price, premium accumulation, 8-hour funding netted to zero, mark price, OI and leverage caps, stale-index rule) | T06B-01, T06A-01, T06A-02, T06A-16, T05-01, T05-20, T03-??, T07B-?? | 22545 | 750 |
+| 134 | [ ] | T06B-05 | S2 | 06B | Option exercise, automatic exercise at expiry, deterministic pro-rata assignment, settlement prices and corporate-action adjustments | T06B-01, T06B-02, T06A-01, T06A-02, T06A-05, T06A-06, T05-20, T03-??, T07B-06 | 20206 | 1000 |
+| 135 | [ ] | T06B-06 | S2 | 06B | Futures (fair value and anchors, daily settlement, last trade and expiry, physical delivery elections, position limits, basis arbitrage, NPC hedgers) | T06B-01, T06B-04, T06A-01, T06A-02, T06A-07, T06A-08, T06A-11, T06A-12, T06A-13, T06A-16, T05-01, T05-20, T04-??, T07B-??, T03-08 | 28533 | 1300 |
+| 136 | [ ] | T06B-07 | S2 | 06B | Perpetual swaps (index price, premium accumulation, 8-hour funding netted to zero, mark price, OI and leverage caps, stale-index rule) | T06B-01, T06A-01, T06A-02, T06A-16, T05-01, T05-20, T03-08, T07B-?? | 24110 | 750 |
 | 137 | [ ] | T06B-08 | S2 | 06B | OTC swaps via RFQ (OIS, ZCIS, FX forwards and swaps, cross-currency, TRS, commodity swaps) with fair rates, valuation, payments, termination and the SWAP model valuer | T06B-01, T06A-01, T06A-02, T06A-11, T06A-12, T06A-15, T06B-04, T05-20, T04-??, T07B-?? | 20724 | 1300 |
 | 138 | [ ] | T06B-09 | S2 | 06B | Credit default swaps (reference entities, standard terms, hazard pricing with CDS-bond basis, GX Credit 40, credit events, settlement auction, succession, insider rule, NPC credit dealers, novation) | T06B-01, T06B-04, T06B-08, T06A-01, T06A-02, T06A-06, T06A-08, T06A-10, T06A-15, T05-20, T03-??, T07B-??, T13A-?? | 23980 | 1300 |
 | 139 | [ ] | T06B-10 | S2 | 06B | Derivative views (options chain, futures and perps panel, swaps and RFQ blotter additions, credit desk CDS curves, calendar and compute extensions) | T06B-01, T06B-02, T06B-03, T06B-04, T06B-05, T06B-06, T06B-07, T06B-08, T06B-09, T06A-02, T06A-17, T05-20 | 18880 | 700 |
-| 140 | [ ] | T06B-11 | S2 | 06B | Unit 06B module assembly (defineModule, phase order, intents, events, streams, port extension, 07B clearing hand-off, integration and replay determinism) | T06B-01, T06B-02, T06B-03, T06B-04, T06B-05, T06B-06, T06B-07, T06B-08, T06B-09, T06B-10, T06A-18, T05-23, T07B-?? | 18723 | 750 |
-| 141 | [ ] | T06C-01 | S2 | 06C | Crypto schema, launch tokens genesis, chains and wallets, deterministic block engine and gas, issuance and staking, exchange custody | T06A-01, T06A-02, T06A-11, T06A-16, T05-01, T05-20, T03-?? | 25639 | 1200 |
+| 140 | [ ] | T06B-11 | S2 | 06B | Unit 06B module assembly (defineModule, phase order, intents, events, streams, port extension, 07B clearing hand-off, integration and replay determinism) | T06B-01, T06B-02, T06B-03, T06B-04, T06B-05, T06B-06, T06B-07, T06B-08, T06B-09, T06B-10, T06A-18, T05-23, T07B-01 | 19943 | 750 |
+| 141 | [ ] | T06C-01 | S2 | 06C | Crypto schema, launch tokens genesis, chains and wallets, deterministic block engine and gas, issuance and staking, exchange custody | T06A-01, T06A-02, T06A-11, T06A-16, T05-01, T05-20, T03-08, T03-09 | 28197 | 1200 |
 | 142 | [ ] | T06C-02 | S2 | 06C | DeFi protocols registry and Tidepool pools (constant product, stableswap), LP tokens and marks, impermanent loss, TWAP accumulators, swap and liquidity intents | T06C-01, T06A-01, T06A-02, T05-20 | 16322 | 1000 |
 | 143 | [ ] | T06C-03 | S2 | 06C | Crypto fundamental values and anchors, the hourly hype process, NPC meme coins (spawn, launcher, death) and hype-campaign surveillance | T06C-01, T06C-02, T06A-01, T06A-02, T06A-12, T06A-16, T05-20 | 21843 | 900 |
 | 144 | [ ] | T06C-04 | S2 | 06C | Cascade range pools (positions, virtual reserves, boundary-crossing swaps, fee growth accounting) | T06C-01, T06C-02, T06A-02 | 11565 | 800 |
 | 145 | [ ] | T06C-05 | S2 | 06C | Quill oracle, Ferro and Harbor lending (rate model, indices, health factor, borrow gate, keeper liquidations, bad debt), NPC keepers and the no-atomic-composition rule | T06C-01, T06C-02, T06A-02, T06A-16, T05-20 | 16801 | 1200 |
 | 146 | [ ] | T06C-06 | S2 | 06C | Stablecoins (fiat-reserve GUSD and EUNX, Vesta CDP with Dutch auctions and PSM, Mirage algorithmic MDOL/MSH) with caused status transitions | T06C-01, T06C-02, T06C-03, T06C-05, T06A-01, T06A-02, T06A-08, T05-20, T07A-?? | 21482 | 1300 |
 | 147 | [ ] | T06C-07 | S2 | 06C | Arc Bridge and Keystone wrappers (lock and mint, impairment, recovery ratio, pause), NPC venue arbitrage and NPC crypto actors (miners, stakers, LPs) | T06C-01, T06C-02, T06C-04, T06C-05, T06A-01, T06A-02, T05-01, T05-20, T04-?? | 24888 | 900 |
-| 148 | [ ] | T06C-08 | S2 | 06C | Player-launched tokens (built in full behind player_tokens_enabled = false) with eligibility, launch fee, locked liquidity, vesting, disclosure, review, surveillance and delisting | T06C-01, T06C-02, T06C-03, T06A-01, T06A-02, T14A-??, T13A-??, T03-?? | 18408 | 750 |
-| 149 | [ ] | T06C-09 | S2 | 06C | Unit 06C views (crypto wallet, DeFi hub), module assembly, whole-module posting audit and the 06 tick-cost benchmark | T06C-01, T06C-02, T06C-03, T06C-04, T06C-05, T06C-06, T06C-07, T06C-08, T06A-17, T06A-18, T06B-11, T05-23, T03-?? | 19649 | 1000 |
-| 150 | [ ] | T07A-01 | S2 | 07A | Banking schema, tables, ids, constants, upstream adapter, ports for later modules, 07A event and intent schemas | T03-01, T03-08, T03-16, T03-25, T04-01, T05-20, T06A-01, T06A-02, T06A-10, T14A-??, T13A-??, T22A-01 | 39466 | 1100 |
+| 148 | [ ] | T06C-08 | S2 | 06C | Player-launched tokens (built in full behind player_tokens_enabled = false) with eligibility, launch fee, locked liquidity, vesting, disclosure, review, surveillance and delisting | T06C-01, T06C-02, T06C-03, T06A-01, T06A-02, T14A-05, T14A-07, T14A-08, T13A-??, T03-09 | 20915 | 750 |
+| 149 | [ ] | T06C-09 | S2 | 06C | Unit 06C views (crypto wallet, DeFi hub), module assembly, whole-module posting audit and the 06 tick-cost benchmark | T06C-01, T06C-02, T06C-03, T06C-04, T06C-05, T06C-06, T06C-07, T06C-08, T06A-17, T06A-18, T06B-11, T05-23, T03-05, T03-09 | 21767 | 1000 |
+| 150 | [ ] | T07A-01 | S2 | 07A | Banking schema, tables, ids, constants, upstream adapter, ports for later modules, 07A event and intent schemas | T03-01, T03-08, T03-16, T03-25, T04-01, T05-20, T06A-01, T06A-02, T06A-10, T14A-07, T14A-08, T13A-??, T22A-01 | 40687 | 1100 |
 | 151 | [ ] | T07A-02 | S2 | 07A | Collateral classes and haircuts, stress multipliers, the single pledge registry, title-transfer re-use links, INV-BS-006 and INV-BS-007 | T07A-01 | 17637 | 1000 |
 | 152 | [ ] | T07A-03 | S2 | 07A | Bank balance sheet, risk weights and RWA, CET1 and leverage, LCR and NSFR, reserve requirement, large exposures, insured split, daily P&L and status mapping, INV-BNK-001 | T07A-01, T07A-02 | 21779 | 1400 |
 | 153 | [ ] | T07A-04 | S2 | 07A | Credit bureau and score, player credit product limits, global DSR cap, P2P loan reporting, the ClearingDebt registry and its blocks, bankruptcy interplay | T07A-01, T07A-02, T03-19, T03-25 | 22772 | 1200 |
 | 154 | [ ] | T07A-05 | S2 | 07A | Deposits and the payment system - accounts, deposit pricing and interest, term deposits, FX conversion margin, sweeps, NPC deposit market share, intraday credit limit, queued payments, reserve requirement penalty | T07A-01, T07A-02, T07A-03, T07A-04, T03-06, T03-15, T22A-01 | 26028 | 1400 |
-| 155 | [ ] | T07A-06 | S2 | 07A | Interbank market - reserve gaps, hourly PD-tolerant match, freeze, ONR fixing - and central-bank facilities (MLF intent, ELA solvency test, stigma disclosure) | T07A-01, T07A-02, T07A-03, T07A-05, T06A-10, T04-?? | 22679 | 1100 |
+| 155 | [ ] | T07A-06 | S2 | 07A | Interbank market - reserve gaps, hourly PD-tolerant match, freeze, ONR fixing - and central-bank facilities (MLF intent, ELA solvency test, stigma disclosure) | T07A-01, T07A-02, T07A-03, T07A-05, T06A-10, T04-01, T04-08 | 28190 | 1100 |
 | 156 | [ ] | T07A-07 | S2 | 07A | Loan rules (pure) - eligibility and limits, risk-based pricing with lending standards, amortization schedules, break cost, delinquency and default state machine, covenants, ECL stages | T07A-01, T07A-02, T07A-03, T07A-04 | 20094 | 1300 |
 | 157 | [ ] | T07A-08 | S2 | 07A | The liquidation engine (fair-value bands, 20% participation, closed markets, halts, penalties) and collateral enforcement of defaulted loans with judgment debts | T07A-01, T07A-02, T07A-04, T07A-07, T05-08, T05-20, T06A-02, T06A-14, T03-25 | 26721 | 1300 |
 | 158 | [ ] | T07B-01 | S2 | 07B | Clearing schema, tables, ids, TCH and service accounts, cleared-product registry, 07B intent and event schemas, codes and constants | T07A-01, T07A-02, T03-01, T03-05, T06A-01, T06A-02 | 26927 | 900 |
@@ -179,12 +179,12 @@
 | 173 | [ ] | T08-01 | S4 | 08 | Schema, tables, ids, constants and ports of module 08 | T02-21, T03-08, T05-01, T06A-01 | 28757 | 1100 |
 | 174 | [ ] | T08-02 | S4 | 08 | Event schemas, reason-code map and registrations, RNG stream rows, reject codes | T08-01, T03-05, T02-06, T02-21 | 20286 | 900 |
 | 175 | [ ] | T08-03 | S4 | 08 | Valuation hierarchy, NAV strike, series performance-fee accruals, swing factor and INV-FND-001 | T08-01, T08-02, T03-08, T03-13, T05-20, T06A-02, T06A-11 | 25078 | 1200 |
-| 176 | [ ] | T08-04 | S4 | 08 | Fund launch - eligibility, fund.create, fund.hireManager, seed rules, fundraising timeout, launch event | T08-01, T08-02, T03-08, T14A-??, T13A-??, T09A-?? | 19558 | 900 |
-| 177 | [ ] | T08-05 | S4 | 08 | Subscriptions - fund.subscribe, fund.seed, fund.cancelRequest, fund.allocateNpcRival, forward pricing, strike-time checks, AUM caps and series | T08-01, T08-02, T08-03, T08-04, T03-08, T03-12, T14A-??, T13A-?? | 23106 | 1100 |
+| 176 | [ ] | T08-04 | S4 | 08 | Fund launch - eligibility, fund.create, fund.hireManager, seed rules, fundraising timeout, launch event | T08-01, T08-02, T03-08, T14A-05, T14A-07, T14A-08, T13A-??, T09A-?? | 21074 | 900 |
+| 177 | [ ] | T08-05 | S4 | 08 | Subscriptions - fund.subscribe, fund.seed, fund.cancelRequest, fund.allocateNpcRival, forward pricing, strike-time checks, AUM caps and series | T08-01, T08-02, T08-03, T08-04, T03-08, T03-12, T14A-08, T13A-06 | 24034 | 1100 |
 | 178 | [ ] | T08-06 | S4 | 08 | Fund fees - management and custody payment, performance-fee crystallization, series merge, NPC-share split | T08-01, T08-02, T08-03, T08-05 | 17213 | 700 |
 | 179 | [ ] | T08-07 | S4 | 08 | Redemptions and the daily dealing step - fund.redeem, gate pro rata, swing pricing, early exit, payables and engine liquidation, in-kind | T08-01, T08-02, T08-03, T08-05, T08-06, T05-01, T05-20, T07A-?? | 27258 | 1300 |
-| 180 | [ ] | T08-08 | S4 | 08 | Mandate enforcement (fund pre-trade check), related-party rules and filings, drift cure, mandate/fee/transparency changes, abuse evidence | T08-01, T08-02, T08-03, T08-07, T05-01, T05-20, T06A-01, T06A-02, T06B-02, T06B-03, T14A-?? | 32182 | 1200 |
-| 181 | [ ] | T08-09 | S4 | 08 | Fund status machine - freezes, drawdown breaker, Level-3 limits and side pockets, halts, regulator orders, absent manager, wind-down and closure, first-loss restitution | T08-01, T08-02, T08-03, T08-05, T08-06, T08-07, T08-08, T05-20, T14A-??, T10B-?? | 24330 | 1300 |
+| 180 | [ ] | T08-08 | S4 | 08 | Mandate enforcement (fund pre-trade check), related-party rules and filings, drift cure, mandate/fee/transparency changes, abuse evidence | T08-01, T08-02, T08-03, T08-07, T05-01, T05-20, T06A-01, T06A-02, T06B-02, T06B-03, T14A-07, T14A-08 | 33403 | 1200 |
+| 181 | [ ] | T08-09 | S4 | 08 | Fund status machine - freezes, drawdown breaker, Level-3 limits and side pockets, halts, regulator orders, absent manager, wind-down and closure, first-loss restitution | T08-01, T08-02, T08-03, T08-05, T08-06, T08-07, T08-08, T05-20, T14A-08, T10B-?? | 24967 | 1300 |
 | 182 | [ ] | T08-10 | S4 | 08 | Track record statistics, fund board eligibility and ranking data, style-drift regression | T08-01, T08-02, T08-03, T05-20, T06A-07, T04-?? | 18795 | 800 |
 | 183 | [ ] | T09A-01 | S3 | 09A | Business schema, tables, ids, reject codes, reason-code map, RNG streams, ports and 09A event schemas | T03-01, T03-02, T03-05, T03-08, T03-24, T04-01, T10A-?? | 28575 | 1100 |
 | 184 | [ ] | T09A-02 | S3 | 09A | Catalog access, tiers, price-level indexing, genesis calibration and market creation | T09A-01, T04-??, T10A-??, T22A-?? | 17632 | 900 |
@@ -198,7 +198,7 @@
 | 192 | [ ] | T09B-03 | S3 | 09B | Internal allocation and vertical integration (transfer-price rules across minority boundaries, consolidation, integration discounts, dependency map) and synergies (cluster, conglomerate, data) | T09B-01, T09B-05, T09A-04, T09A-05, T03-15 | 13733 | 600 |
 | 193 | [ ] | T09B-04 | S3 | 09B | Valuation (business EV, company EV, equity value, private-stake waterfall for 08, fundamental value V for listed player companies with the 09 §3.1.4 sector map), valuation reflection and selling businesses | T09B-01, T09A-02, T09A-06, T10A-05, T06A-02, T15A-?? | 15523 | 1000 |
 | 194 | [ ] | T09B-05 | S3 | 09B | Company formation and cap tables (share classes, super-voting before IPO, issuance, splits, INV-BS-005), corporate debt (07 loans, bonds, convertibles), covenants with cure and waivers, dividends and buybacks, related-party band | T09B-01, T09B-04, T07A-07, T06A-??, T08-??, T03-25 | 14049 | 1300 |
-| 195 | [ ] | T09B-06 | S3 | 09B | IPOs (eligibility, filing, underwriter range and fee, prospectus, one-day book with player and NPC bids, uniform clearing, allocation caps, failure and refile, listing in the 09 §3.1.4 market sector) | T09B-01, T09B-04, T09B-05, T06A-??, T05-??, T07A-??, T15A-??, T14A-??, T13A-?? | 10951 | 1000 |
+| 195 | [ ] | T09B-06 | S3 | 09B | IPOs (eligibility, filing, underwriter range and fee, prospectus, one-day book with player and NPC bids, uniform clearing, allocation caps, failure and refile, listing in the 09 §3.1.4 market sector) | T09B-01, T09B-04, T09B-05, T06A-??, T05-??, T07A-??, T15A-??, T14A-05, T14A-07, T14A-08, T13A-?? | 12467 | 1000 |
 | 196 | [ ] | T09B-07 | S3 | 09B | Post-listing rules (lockup, founder sale cap with pre-announcement, blackout, rank marks, media flag, position caps, delisting review), earnings and consensus, disclosure, governance and board, spin-offs | T09B-04, T09B-05, T09B-06, T06A-??, T05-??, T13A-??, T15A-??, T02-?? | 10503 | 1100 |
 | 197 | [ ] | T09B-08 | S3 | 09B | Startups and venture (NPC startup spawn with hidden power-law fate, noisy scores and research, rounds and milestones, player investing with standard terms, anti-dilution, exit waterfall, player-founded startups) | T09B-01, T09B-04, T09B-05, T09B-06, T09A-02, T08-??, T11-??, T16A-?? | 11323 | 1000 |
 | 198 | [ ] | T09B-09 | S3 | 09B | Control and M&A (ownership thresholds and filings, accumulation caps, tender offers with raises and squeeze-out, take-private, negotiated mergers, NPC private companies, antitrust, insider windows, absorbing NPC listed companies) | T09B-04, T09B-05, T09B-07, T05-??, T06A-??, T07A-??, T13A-??, T15A-??, T16A-??, T03-15 | 12053 | 1400 |
@@ -222,10 +222,10 @@
 | 216 | [ ] | T10B-01 | S3 | 10B | 10B schema (mortgage extension, development projects, permits, presales, listings, offers, land auctions, demand inputs), tables, ids, reason-code bindings, ports | T10A-01, T07A-01, T03-01, T03-05 | 18339 | 700 |
 | 217 | [ ] | T10B-02 | S3 | 10B | Property market supply and demand side (NPC listings with carry, distressed listings, player listings, offers and NPC auto-accept, NPC buyer arrival hazard, instant sale to the NPC property fund with capacity queue) | T10B-01, T10A-04, T10A-05, T10A-07 | 9818 | 900 |
 | 218 | [ ] | T10B-03 | S3 | 10B | Purchase settlement (atomic P13, transaction costs, stamp duty, P2P exchange fees, lease and deposit transfer, mortgage payoff or assumption, cross-bloc escrow) and appraisal integrity | T10B-01, T10B-02, T10A-06, T10A-07, T03-06, T03-08, T15A-?? | 11951 | 700 |
-| 219 | [ ] | T10B-04 | S3 | 10B | Mortgage eligibility, pricing, quotes and payments (max LTV by product and credit conditions, DSCR and DTI tests, spread formula, fixed and floating, annuity and interest-only schedules, daily accrual, origination via 07) | T10B-01, T10A-05, T07A-07, T07A-04, T14A-??, T13A-?? | 12025 | 900 |
+| 219 | [ ] | T10B-04 | S3 | 10B | Mortgage eligibility, pricing, quotes and payments (max LTV by product and credit conditions, DSCR and DTI tests, spread formula, fixed and floating, annuity and interest-only schedules, daily accrual, origination via 07) | T10B-01, T10A-05, T07A-07, T07A-04, T14A-07, T13A-?? | 12606 | 900 |
 | 220 | [ ] | T10B-05 | S3 | 10B | Mortgage covenants, late payments, cure, foreclosure and forced sale (fair-value band, NPC fund, bad-bank overflow, proceeds waterfall), recourse and collection floor | T10B-01, T10B-02, T10B-03, T10B-04, T10A-07, T07A-08, T13A-??, T14A-?? | 13319 | 1000 |
 | 221 | [ ] | T10B-06 | S3 | 10B | Prepayment and refinancing (penalty, atomic payoff, cash-out seasoning and appraisal cap), securitization risk feed, REIT NAV, insurance exposure feed | T10B-01, T10B-04, T10B-05, T10A-05, T08-?? | 9671 | 650 |
-| 222 | [ ] | T10B-07 | S3 | 10B | Development entry (rank gates and concurrency, land auctions and parcel assembly, zoning and permits by right, variance and rezoning, planning queue, objections, appeals, heritage) | T10B-01, T10A-03, T10A-05, T10A-08, T03-08, T14A-??, T13A-??, T16B-?? | 11750 | 1100 |
+| 222 | [ ] | T10B-07 | S3 | 10B | Development entry (rank gates and concurrency, land auctions and parcel assembly, zoning and permits by right, variance and rezoning, planning queue, objections, appeals, heritage) | T10B-01, T10A-03, T10A-05, T10A-08, T03-08, T14A-05, T13A-??, T16B-?? | 12043 | 1100 |
 | 223 | [ ] | T10B-08 | S3 | 10B | Construction (budget lines and input index, schedule and phases, contractors with overruns and delays, phase escrow and payments, construction loans, presales, completion into buildings and term loans) | T10B-01, T10B-04, T10B-07, T10A-05, T10A-07, T03-08, T09A-??, T06A-?? | 12854 | 1400 |
 | 224 | [ ] | T10B-09 | S3 | 10B | Pause, stall and cancel (security cost, stalled shells, shell credit, resumption) and renovation, grade upgrade, conversion, redevelopment and demolition | T10B-01, T10B-07, T10B-08, T10A-06, T10A-07 | 9998 | 800 |
 | 225 | [ ] | T10B-10 | S3 | 10B | Growth and decline (NPC developers and pipeline target, city start cap, development priority, conversions, vacancy and derelict rules, corridor expansion, new-city opening trigger) and the emergent housing-crisis path | T10B-01, T10B-04, T10B-05, T10B-07, T10B-08, T10A-02, T10A-03, T10A-05, T16B-?? | 13168 | 1200 |
@@ -315,7 +315,7 @@
 | 309 | [ ] | T15B-05 | S7 | 15B | Leagues, Finals and Hall of Fame - weekly tiers and hash groups, promotion/relegation, Season Finals seating and 30-tick spectator delay, rivals highlight, permanent records | T15B-04, T15B-03, T14B-10, T15B-09 | 9813 | 900 |
 | 310 | [ ] | T15B-06 | S7 | 15B | Alliances - tiers and charter fees, treasury, roles and permissions, proposals and votes, join/leave/kick with hop cooldown, syndicates, SOC and intel, rivalries, consortia, mergers, embezzlement detection, dissolution | T15B-01, T15A-01, T15A-02, T09A-??, T10A-??, T12-??, T13B-??, T03-08 | 12307 | 1100 |
 | 311 | [ ] | T15B-07 | S7 | 15B | Chat, Wire, spectating and notifications - channels and slow mode, message rules, Wire ranking with holdings relevance, statements, Whale Watch, replays, While You Were Away, push caps | T15B-01, T15B-04, T16A-08, T05-??, T14B-??, T19C-05, T12-05 | 12787 | 1000 |
-| 312 | [ ] | T15B-08 | S7 | 15B | Anti-cheat and integrity - signal collection into linkSignals, value-flow graph, botting flags, enforcement ladder, shadow pools, official API gate, exploit clawback; alts neutralized per §3.12 (scoring in T15A-02) | T15B-01, T15A-02, T15A-05, T19C-02, T19C-10, T21-??, T14A-?? | 13230 | 1000 |
+| 312 | [ ] | T15B-08 | S7 | 15B | Anti-cheat and integrity - signal collection into linkSignals, value-flow graph, botting flags, enforcement ladder, shadow pools, official API gate, exploit clawback; alts neutralized per §3.12 (scoring in T15A-02) | T15B-01, T15A-02, T15A-05, T19C-02, T19C-10, T21-??, T14A-09 | 13806 | 1000 |
 | 313 | [ ] | T15B-09 | S7 | 15B | Challenges and AI tournament - ring-fenced portfolios (INV-SOC-001, INV-SOC-002), scenario and live-shadow modes, catalog events, weekly tournament with commit-reveal seeds, AI Arena | T15B-01, T15B-05, T11-15, T20A-04, T05-??, T19C-?? | 11020 | 900 |
 | 314 | [ ] | T15B-10 | S7 | 15B | Unit 15B assembly - defineModule, intents and events, screens, NPC behaviour, edge cases and exploit sweep, determinism; wires linkSignals into 15A | T15B-01, T15B-02, T15B-03, T15B-04, T15B-05, T15B-06, T15B-07, T15B-08, T15B-09, T15A-09 | 13621 | 600 |
 | 315 | [ ] | T16A-01 | S1 | 16A | World schema - HouseholdSector, FirmSector, NewsTemplate, NewsItem, CausalLink, ConsequenceRule, PendingConsequence, RumorSource, Rumor, Tip, ShockInstance view, world.* event schemas, RNG stream keys, reason-code bindings, ports | T02-06, T02-09, T02-11, T02-13, T03-01, T03-02, T04-01 | 26562 | 800 |
@@ -364,11 +364,11 @@
 | 358 | [ ] | T19B-15 | S1 | 19B | Archiver and retention jobs - batch archive, weekly event Parquet, hot-partition drops, snapshot thinning, audit mirror with object lock, backup configuration | T02-05, T02-10, T19B-03, T19B-04, T19B-11 | 15125 | 1000 |
 | 359 | [ ] | T19B-16 | S1 | 19B | World host assembly and headless multi-partition world - initial partition map, genesis, ACTIVE/STANDBY main, replay equality and partition independence | T02-17, T20A-04, T19B-02, T19B-07, T19B-10, T19B-11, T19B-12, T19B-14, T19B-15 | 19926 | 1100 |
 | 360 | [ ] | T19C-01 | S1 | 19C | Protocol channel catalog and body schemas, generated intent schemas, visible-field allowlist check, docs/intents.json and INV-STR-005 | T19A-02, T19A-05, T02-11, T19B-02, T19B-14 | 17724 | 1300 |
-| 361 | [ ] | T19C-02 | S1 | 19C | Authentication and accounts - Better Auth methods, guest and full accounts, PII schema with encrypted email, keyed IP hashing, MFA-required rule, security-change hold submission | T19B-01, T19B-04, T19B-03, T14A-?? | 16093 | 1200 |
+| 361 | [ ] | T19C-02 | S1 | 19C | Authentication and accounts - Better Auth methods, guest and full accounts, PII schema with encrypted email, keyed IP hashing, MFA-required rule, security-change hold submission | T19B-01, T19B-04, T19B-03, T14A-03 | 16714 | 1200 |
 | 362 | [ ] | T19C-03 | S1 | 19C | Session signing keys, socket tickets, session routes, intent signature verification and the per-key nonce window | T19A-02, T19B-04, T19C-02 | 13826 | 1000 |
 | 363 | [ ] | T19C-04 | S1 | 19C | Gateway core - socket lifecycle, hello and protocol version, intake checks and forwarding, seal acks, rate limits, socket caps, presence, revocation, halt and queue | T19A-02, T02-14, T19B-03, T19B-06, T19B-10, T19C-01, T19C-03 | 21650 | 1400 |
 | 364 | [ ] | T19C-05 | S1 | 19C | Subscriptions and delta delivery - channel authorization, delta router, resume buffers, public snapshots, backpressure, req ops and the world view service | T19A-02, T19B-03, T19B-07, T19B-09, T19C-01, T19C-04 | 18511 | 1400 |
-| 365 | [ ] | T19C-06 | S1 | 19C | Engine module sys (part 3) - account status and freeze, account deletion, profile changes, guest upgrade, wall-clock marks | T02-05, T19B-13, T19B-14, T14A-?? | 13190 | 800 |
+| 365 | [ ] | T19C-06 | S1 | 19C | Engine module sys (part 3) - account status and freeze, account deletion, profile changes, guest upgrade, wall-clock marks | T02-05, T19B-13, T19B-14, T14A-01, T14A-04 | 15988 | 800 |
 | 366 | [ ] | T19C-07 | S1 | 19C | HTTP API framework and web hardening (proxy.ts CSP, CSRF, rate limits), roll verification route and SDK function, signed daily integrity report | T02-07, T19A-02, T19B-01, T19B-04, T19B-15, T19C-02 | 20157 | 1100 |
 | 367 | [ ] | T19C-08 | S1 | 19C | Personal data - export and deletion jobs with routes, PII scanner over batches, events and snapshots | T19B-04, T19B-11, T19B-15, T19B-16, T19C-02, T19C-06, T19C-07, T14A-?? | 14902 | 1000 |
 | 368 | [ ] | T19C-09 | S1 | 19C | Projector framework - ordered idempotent event consumption, projection watermarks, versioned rebuild with atomic swap, ClickHouse tables and warm event tier | T19B-03, T19B-04, T19B-11, T19B-15 | 13563 | 1000 |
@@ -376,31 +376,31 @@
 | 370 | [ ] | T19C-11 | S1 | 19C | Client shell plumbing - Zustand stores per channel family fed only by the worker, no-money-prediction lint rule, content split build check, platform surface view models of 19 §7 | T19A-01, T19A-04, T19A-05, T19C-01, T19C-07, T19C-10, T22A-?? | 17699 | 1200 |
 | 371 | [ ] | T19D-01 | S9 | 19D | Multi-host partitions and rebalancing - host registry and placement, rebalance planner, MOVE execution at snapshot boundaries with hash check and cancellation, invisible map changes for clients | T02-14, T02-17, T19B-02, T19B-07, T19B-08, T19B-11, T19B-12, T19B-13, T19B-16, T19C-04, T19C-05, T19C-10 | 27469 | 1400 |
 | 372 | [ ] | T19D-02 | S9 | 19D | Deploys and versions - engine upgrade at a snapshot boundary with partition-by-partition takeover, golden replay deploy gate with intendedDivergence, param and content change pipeline, feature flags, expand-migrate-contract checks | T02-17, T02-18, T19A-05, T19B-09, T19B-11, T19B-12, T19B-13, T19B-16, T19D-01, T20A-03, T20A-04, T23-08 | 22154 | 1300 |
-| 373 | [ ] | T19D-03 | S9 | 19D | Expert API - api.eligible flag, API key routes with scopes and fresh MFA, challenge-signed WebSocket endpoint, signed HTTP authorization, shared rate bucket, connections refresh limit | T19B-04, T19C-02, T19C-03, T19C-04, T19C-05, T19C-07, T19C-10, T19C-11, T19B-16, T14A-??, T15B-??, T12-?? | 20569 | 1100 |
+| 373 | [ ] | T19D-03 | S9 | 19D | Expert API - api.eligible flag, API key routes with scopes and fresh MFA, challenge-signed WebSocket endpoint, signed HTTP authorization, shared rate bucket, connections refresh limit | T19B-04, T19C-02, T19C-03, T19C-04, T19C-05, T19C-07, T19C-10, T19C-11, T19B-16, T14A-07, T15B-??, T12-?? | 21150 | 1100 |
 | 374 | [ ] | T19D-04 | S9 | 19D | Strategy-graph hosting - bytecode compiler with save-time limits, DU-metered pure interpreter, P5 AI worker pool with deterministic collection, load-scale application, NPC work budget and caps | T02-02, T02-07, T02-11, T02-12, T19B-02, T19B-07, T19B-08, T19B-10, T19B-13, T11-?? | 21370 | 1400 |
 | 375 | [ ] | T19D-05 | S9 | 19D | Replay service and sandbox isolation - POST /api/v1/replay, isolated harness replay from cold storage with hash check, visibility-filtered replay views, client sandbox engine worker and the server-side isolation guard | T02-07, T02-13, T02-17, T19B-04, T19B-11, T19B-15, T19B-16, T19C-02, T19C-07, T19C-09, T19C-11, T13-??, T18-??, T21-?? | 24741 | 1200 |
 | 376 | [ ] | T19D-06 | S9 | 19D | PWA and native shells, client performance budgets - manifest and Serwist service worker, offline me snapshot, Web Push, Capacitor static export with native plugins, bundle and tick-render budget gates | T19A-05, T19C-07, T19C-10, T19C-11, T17-??, T15B-??, T21-?? | 13991 | 1200 |
 | 377 | [ ] | T19D-07 | S9 | 19D | Infrastructure and operations - hosting topology as code, CDN and WAF in front of web and gateways, edge gateways, KMS key rotation, SLOs with burn-rate alerts, integrity dashboard, backups and the restore drill | T19B-01, T19B-03, T19B-04, T19B-05, T19B-12, T19B-15, T19B-16, T19C-04, T19C-07, T19C-09, T19D-01, T19D-02 | 26732 | 1300 |
 | 378 | [ ] | T19D-08 | S9 | 19D | Load and deploy drills - SDK bot swarm and synthetic socket load, launch and architecture load targets, zero-missed-tick rolling deploy under load, per-client bandwidth, hot-asset clearing | T05-05, T05-06, T05-22, T19B-08, T19B-16, T19C-04, T19C-05, T19C-10, T19D-01, T19D-02, T19D-04, T19D-07, T20A-04 | 23769 | 1300 |
 | 379 | [ ] | T19D-09 | S9 | 19D | Outbound leak scanners and end-to-end platform checks - connection-entry indistinguishability, presence leak scan, entropy foresight scan, world halt drill, rewarded-ad grant validation through the platform path | T19B-05, T19B-10, T19B-13, T19B-16, T19C-04, T19C-05, T19C-07, T19C-08, T19C-11, T19D-03, T19D-08, T12-??, T15B-??, T21-?? | 28596 | 1200 |
-| 380 | [ ] | T20B-01 | S10 | 20B | Whole-game invariant catalogue check, negative-test coverage report, and the crafted ledger fault tests (unbalanced entry, faucet and transfer M0 effects) | T20A-01, T20A-03, T20A-05, T02-16, T02-17, T02-21, T03-??, T19B-?? | 23435 | 800 |
-| 381 | [ ] | T20B-02 | S10 | 20B | Harness host - building headless worlds from HarnessWorldSpec with the full engine, presets, population templates, the player-level agent driver (same intake, rate limits and views as a client), probes, mirror worlds with pseudonymizer, harness RNG streams, result sinks | T20A-03, T20A-04, T20A-05, T02-06, T02-08, T02-14, T02-17, T02-21, T19B-??, T19C-??, T14A-??, T22B-??, T21-?? | 21172 | 1500 |
+| 380 | [ ] | T20B-01 | S10 | 20B | Whole-game invariant catalogue check, negative-test coverage report, and the crafted ledger fault tests (unbalanced entry, faucet and transfer M0 effects) | T20A-01, T20A-03, T20A-05, T02-16, T02-17, T02-21, T03-01, T03-09, T03-27, T03-28, T19B-?? | 29012 | 800 |
+| 381 | [ ] | T20B-02 | S10 | 20B | Harness host - building headless worlds from HarnessWorldSpec with the full engine, presets, population templates, the player-level agent driver (same intake, rate limits and views as a client), probes, mirror worlds with pseudonymizer, harness RNG streams, result sinks | T20A-03, T20A-04, T20A-05, T02-06, T02-08, T02-14, T02-17, T02-21, T19B-??, T19C-??, T14A-03, T14A-11, T22B-??, T21-?? | 22120 | 1500 |
 | 382 | [ ] | T20B-03 | S10 | 20B | Regression capture from every failure source, delta-debugging minimization (ticks, intents, agents), FAST and NIGHTLY tiers, run-file import | T20A-03, T20A-04, T02-17, T02-21, T20B-02 | 14493 | 1000 |
 | 383 | [ ] | T20B-04 | S10 | 20B | Whole-game determinism - partition equivalence {1, 4, 16} plus a random map, snapshot-resume equivalence, host profiles x64/arm64 and toolchain comparison, browser Web Worker versus Node, version replay, first-divergence search | T20A-04, T02-14, T02-17, T02-18, T20B-02, T20B-03, T19C-?? | 15441 | 1200 |
 | 384 | [ ] | T20B-05 | S10 | 20B | Whole-game structural gates - commerce isolation on the resolved module graph, engine bundle and world-manifest scans, intent registry to handler to spec sync, and the no-sandbox-import audit | T20A-06, T20B-01, T19A-??, T19B-??, T21-?? | 11218 | 900 |
-| 385 | [ ] | T20B-06 | S10 | 20B | Agent toolkit and the HONEST archetypes A01-A15 (passive investor to whale defender) as player-level policies | T20B-02, T05-??, T06A-??, T07A-??, T08-??, T09A-??, T10A-??, T11-??, T12-??, T14A-??, T15A-?? | 13123 | 1500 |
+| 385 | [ ] | T20B-06 | S10 | 20B | Agent toolkit and the HONEST archetypes A01-A15 (passive investor to whale defender) as player-level policies | T20B-02, T05-??, T06A-??, T07A-??, T08-??, T09A-??, T10A-??, T11-??, T12-??, T14A-06, T15A-?? | 13572 | 1500 |
 | 386 | [ ] | T20B-07 | S10 | 20B | LIFECYCLE archetypes A26-A30 and OPTIMIZER archetypes A16-A19, A24, A31, A32 (rings with out-of-band coordination, greedy search, inference probe, overfitter, exit-scam manager) | T20B-02, T20B-06, T08-??, T11-??, T14B-??, T15A-??, T15B-??, T18-??, T21-?? | 12887 | 1400 |
-| 387 | [ ] | T20B-08 | S10 | 20B | RULE_PROBE archetypes A33-A45 (mark pumper, ad timer, restricted-cash probe, protection probe, collateral juggler, appraisal inflater, consolidation gamer, insurance stager, rival front-runner, event timer, rumor follower, concession squatter, stabilizer gamer) | T20B-02, T20B-06, T20B-07, T03-??, T05-??, T07A-??, T08-??, T09A-??, T10A-??, T12-??, T14B-??, T16A-??, T21-?? | 12987 | 1400 |
+| 387 | [ ] | T20B-08 | S10 | 20B | RULE_PROBE archetypes A33-A45 (mark pumper, ad timer, restricted-cash probe, protection probe, collateral juggler, appraisal inflater, consolidation gamer, insurance stager, rival front-runner, event timer, rumor follower, concession squatter, stabilizer gamer) | T20B-02, T20B-06, T20B-07, T03-12, T03-27, T05-??, T07A-??, T08-??, T09A-??, T10A-??, T12-??, T14B-??, T16A-??, T21-?? | 14248 | 1400 |
 | 388 | [ ] | T20B-09 | S10 | 20B | CONFLICT archetypes A20-A23, A25 and ADAPTIVE archetypes A46, A47 with the cross-entropy learner | T20B-02, T20B-06, T20B-07, T05-??, T12-??, T13B-??, T15B-??, T16B-?? | 13007 | 1300 |
-| 389 | [ ] | T20B-10 | S10 | 20B | Exploit hunts - the seven oracles, the hunt catalogue H01-H35, finding lifecycle with 3-seed reproduction and severity, live exposure query, and the continuous hunt farm | T20A-03, T20A-05, T20B-02, T20B-03, T20B-07, T20B-08, T20B-09, T03-??, T05-??, T21-?? | 16586 | 1400 |
+| 389 | [ ] | T20B-10 | S10 | 20B | Exploit hunts - the seven oracles, the hunt catalogue H01-H35, finding lifecycle with 3-seed reproduction and severity, live exposure query, and the continuous hunt farm | T20A-03, T20A-05, T20B-02, T20B-03, T20B-07, T20B-08, T20B-09, T03-09, T03-11, T05-??, T21-?? | 18494 | 1400 |
 | 390 | [ ] | T20B-11 | S10 | 20B | Band runner, metric registry and common definitions (NW, multiple, beat share vs BH, Sharpe, engaged agents), and the market and ecology bands of 20 §3.7.3 including the self-impact, crowd-exit, strategy-dominance and crowd-decay gates | T20A-03, T20A-05, T20B-02, T20B-03, T20B-06, T20B-07, T20B-08, T20B-10, T05-??, T06A-??, T16A-?? | 21653 | 1500 |
-| 391 | [ ] | T20B-12 | S10 | 20B | Economy, money and wealth bands (20 §3.7.4) and macro and institution bands (20 §3.7.5), with the wealth-curve, crisis-frequency and fund-extraction acceptance tests | T20B-02, T20B-06, T20B-07, T20B-11, T03-??, T04-??, T07A-??, T07B-??, T08-??, T14B-??, T16C-?? | 12216 | 1300 |
+| 391 | [ ] | T20B-12 | S10 | 20B | Economy, money and wealth bands (20 §3.7.4) and macro and institution bands (20 §3.7.5), with the wealth-curve, crisis-frequency and fund-extraction acceptance tests | T20B-02, T20B-06, T20B-07, T20B-11, T03-11, T03-24, T04-??, T07A-??, T07B-??, T08-??, T14B-??, T16C-?? | 14437 | 1300 |
 | 392 | [ ] | T20B-13 | S10 | 20B | Business, property and AI bands (20 §3.7.6) and conflict and law bands (20 §3.7.7), with the crime EV, variance and wrongful-conviction acceptance test | T20B-02, T20B-06, T20B-07, T20B-09, T20B-11, T09A-??, T10A-??, T11-??, T12-??, T13B-?? | 12121 | 1200 |
 | 393 | [ ] | T20B-14 | S10 | 20B | Fairness, entry and path bands (20 §3.7.8) and privacy and experience bands (20 §3.7.10), with the delta-audit and inference-lift acceptance tests | T20B-02, T20B-06, T20B-07, T20B-11, T02-13, T15B-??, T17B-??, T18-??, T19C-??, T21-?? | 12265 | 1300 |
-| 394 | [ ] | T20B-15 | S10 | 20B | Comeback and ad faucet bands (20 §3.7.9) with bust-farming, ad-timing and restricted-cash acceptance tests across timezone fixtures | T20B-02, T20B-07, T20B-08, T20B-10, T20B-11, T03-??, T14B-??, T21-?? | 12530 | 900 |
+| 394 | [ ] | T20B-15 | S10 | 20B | Comeback and ad faucet bands (20 §3.7.9) with bust-farming, ad-timing and restricted-cash acceptance tests across timezone fixtures | T20B-02, T20B-07, T20B-08, T20B-10, T20B-11, T03-02, T03-12, T03-24, T14B-??, T21-?? | 14964 | 900 |
 | 395 | [ ] | T20B-16 | S10 | 20B | Experiments and calibration - population factorial design, adaptation runs, GEV tail calibration bands, named crisis scenarios, agent-intelligence experiments and the prose-independence check | T20B-02, T20B-03, T20B-09, T20B-11, T20B-12, T04-??, T07A-??, T08-??, T16C-?? | 12865 | 1300 |
 | 396 | [ ] | T20B-17 | S10 | 20B | Live verification - the shadow verifier process (different partition count, lag tracking, mismatch handling, tie-break), the G4 canary, live monitors against bands, and the live exposure hand-off | T02-17, T02-18, T20A-04, T20B-03, T20B-04, T20B-10, T20B-11, T19B-??, T21-?? | 15186 | 1200 |
-| 397 | [ ] | T20B-18 | S10 | 20B | Truth Machine player surface - the '20' ModuleDef (exploit report and credit opt-in intents, tm events, views), weekly and chapter IntegrityReport builder, outcome verification, exploit disclosure safe harbour and cosmetic rewards | T02-07, T02-11, T02-20, T20A-05, T20B-10, T03-??, T14B-??, T15B-??, T16A-??, T19C-??, T21-?? | 19242 | 1400 |
+| 397 | [ ] | T20B-18 | S10 | 20B | Truth Machine player surface - the '20' ModuleDef (exploit report and credit opt-in intents, tm events, views), weekly and chapter IntegrityReport builder, outcome verification, exploit disclosure safe harbour and cosmetic rewards | T02-07, T02-11, T02-20, T20A-05, T20B-10, T03-11, T03-24, T03-27, T14B-??, T15B-??, T16A-??, T19C-??, T21-?? | 22265 | 1400 |
 | 398 | [ ] | T20B-19 | S10 | 20B | Load, chaos and deploy gates - WebSocket load driver at LAUNCH and TARGET profiles, 72-hour pass criteria, partition and coordinator kills, bus partition, gateway kill, database failover, rolling deploy drill, restore drill | T02-12, T02-16, T20B-02, T20B-06, T20B-17, T19B-??, T19C-??, T19D-?? | 15916 | 1300 |
 | 399 | [ ] | T20B-20 | S10 | 20B | Human playtests (cohorts, scenarios, measures, thresholds, ethics records) and the sandbox and solo verification rules (no ranked solo play, server-only challenges, no carry-over, Held off offline, no ads in sandbox) | T20A-05, T20B-02, T20B-11, T13B-??, T15B-??, T18-??, T19C-??, T21-?? | 13091 | 1000 |
 | 400 | [ ] | T20B-21 | S10 | 20B | Gate orchestration G0-G5 and stage gates - check lists per gate, wall budgets, adaptive re-runs, WITHHELD retirement, hotfix path, waivers, internal Truth Machine events and the dashboard read models, counters to the verification-system exploits | T20A-03, T20A-05, T20B-01, T20B-03, T20B-04, T20B-05, T20B-10, T20B-11, T20B-12, T20B-13, T20B-14, T20B-15, T20B-16, T20B-17, T20B-18, T20B-19, T20B-20, T21-?? | 22216 | 1300 |
@@ -408,49 +408,31 @@
 
 ## Problems found
 
-- T02-01: unknown dependency T19A-??
 - T02-05: unknown dependency T23-??
 - T02-05: unknown dependency T22A-??
 - T02-08: unknown dependency T23-??
 - T02-08: unknown dependency T19A-??
 - T02-11: unknown dependency T23-??
-- T02-11: unknown dependency T22A-??
 - T02-11: unknown dependency T19A-??
 - T02-12: unknown dependency T23-??
 - T02-12: unknown dependency T22A-??
 - T02-18: unknown dependency T23-??
 - T02-21: unknown dependency T23-??
 - T02-21: unknown dependency T22A-??
-- T05-01: unknown dependency T03-??
-- T05-01: unknown dependency T04-??
 - T05-03: unknown dependency T04-??
 - T05-04: unknown dependency T04-??
 - T05-08: unknown dependency T04-??
-- T05-10: unknown dependency T03-??
 - T05-10: unknown dependency T04-??
-- T05-11: unknown dependency T14A-??
-- T05-11: unknown dependency T13A-??
-- T05-11: unknown dependency T03-??
 - T05-12: unknown dependency T04-??
-- T05-13: unknown dependency T14A-??
 - T05-14: unknown dependency T04-??
-- T05-18: unknown dependency T14A-??
-- T05-20: unknown dependency T14A-??
-- T05-21: unknown dependency T14A-??
-- T05-23: unknown dependency T03-??
 - T05-23: unknown dependency T04-??
-- T05-23: unknown dependency T14A-??
 - T05-23: unknown dependency T13A-??
-- T06A-01: unknown dependency T03-??
-- T06A-01: unknown dependency T04-??
-- T06A-02: unknown dependency T14A-??
 - T06A-02: unknown dependency T13A-??
 - T06A-02: unknown dependency T03-??
 - T06A-03: unknown dependency T04-??
 - T06A-05: unknown dependency T03-??
 - T06A-06: unknown dependency T03-??
 - T06A-08: unknown dependency T04-??
-- T06A-08: unknown dependency T03-??
 - T06A-09: unknown dependency T04-??
 - T06A-10: unknown dependency T04-??
 - T06A-11: unknown dependency T04-??
@@ -459,34 +441,23 @@
 - T06A-14: unknown dependency T04-??
 - T06A-14: unknown dependency T03-??
 - T06A-15: unknown dependency T04-??
-- T06A-18: unknown dependency T03-??
 - T06B-01: unknown dependency T07B-??
 - T06B-02: unknown dependency T04-??
 - T06B-03: unknown dependency T04-??
 - T06B-04: unknown dependency T04-??
 - T06B-05: unknown dependency T03-??
-- T06B-05: unknown dependency T07B-??
 - T06B-06: unknown dependency T04-??
 - T06B-06: unknown dependency T07B-??
-- T06B-06: unknown dependency T03-??
-- T06B-07: unknown dependency T03-??
 - T06B-07: unknown dependency T07B-??
 - T06B-08: unknown dependency T04-??
 - T06B-08: unknown dependency T07B-??
 - T06B-09: unknown dependency T03-??
 - T06B-09: unknown dependency T07B-??
 - T06B-09: unknown dependency T13A-??
-- T06B-11: unknown dependency T07B-??
-- T06C-01: unknown dependency T03-??
 - T06C-06: unknown dependency T07A-??
 - T06C-07: unknown dependency T04-??
-- T06C-08: unknown dependency T14A-??
 - T06C-08: unknown dependency T13A-??
-- T06C-08: unknown dependency T03-??
-- T06C-09: unknown dependency T03-??
-- T07A-01: unknown dependency T14A-??
 - T07A-01: unknown dependency T13A-??
-- T07A-06: unknown dependency T04-??
 - T07B-03: unknown dependency T06B-??
 - T07B-04: unknown dependency T06B-??
 - T07B-05: unknown dependency T14A-??
@@ -498,14 +469,9 @@
 - T07B-12: unknown dependency T06C-??
 - T07B-13: unknown dependency T06B-??
 - T07B-15: unknown dependency T07A-??
-- T08-04: unknown dependency T14A-??
 - T08-04: unknown dependency T13A-??
 - T08-04: unknown dependency T09A-??
-- T08-05: unknown dependency T14A-??
-- T08-05: unknown dependency T13A-??
 - T08-07: unknown dependency T07A-??
-- T08-08: unknown dependency T14A-??
-- T08-09: unknown dependency T14A-??
 - T08-09: unknown dependency T10B-??
 - T08-10: unknown dependency T04-??
 - T09A-01: unknown dependency T10A-??
@@ -526,7 +492,6 @@
 - T09B-06: unknown dependency T05-??
 - T09B-06: unknown dependency T07A-??
 - T09B-06: unknown dependency T15A-??
-- T09B-06: unknown dependency T14A-??
 - T09B-06: unknown dependency T13A-??
 - T09B-07: unknown dependency T06A-??
 - T09B-07: unknown dependency T05-??
@@ -552,12 +517,10 @@
 - T09B-12: unknown dependency T16A-??
 - T09B-12: unknown dependency T08-??
 - T10B-03: unknown dependency T15A-??
-- T10B-04: unknown dependency T14A-??
 - T10B-04: unknown dependency T13A-??
 - T10B-05: unknown dependency T13A-??
 - T10B-05: unknown dependency T14A-??
 - T10B-06: unknown dependency T08-??
-- T10B-07: unknown dependency T14A-??
 - T10B-07: unknown dependency T13A-??
 - T10B-07: unknown dependency T16B-??
 - T10B-08: unknown dependency T09A-??
@@ -598,14 +561,10 @@
 - T15B-07: unknown dependency T05-??
 - T15B-07: unknown dependency T14B-??
 - T15B-08: unknown dependency T21-??
-- T15B-08: unknown dependency T14A-??
 - T15B-09: unknown dependency T05-??
 - T15B-09: unknown dependency T19C-??
-- T19C-02: unknown dependency T14A-??
-- T19C-06: unknown dependency T14A-??
 - T19C-08: unknown dependency T14A-??
 - T19C-11: unknown dependency T22A-??
-- T19D-03: unknown dependency T14A-??
 - T19D-03: unknown dependency T15B-??
 - T19D-03: unknown dependency T12-??
 - T19D-04: unknown dependency T11-??
@@ -623,11 +582,9 @@
 - T20A-03: unknown dependency T19A-??
 - T20A-04: unknown dependency T19A-??
 - T20A-06: unknown dependency T19A-??
-- T20B-01: unknown dependency T03-??
 - T20B-01: unknown dependency T19B-??
 - T20B-02: unknown dependency T19B-??
 - T20B-02: unknown dependency T19C-??
-- T20B-02: unknown dependency T14A-??
 - T20B-02: unknown dependency T22B-??
 - T20B-02: unknown dependency T21-??
 - T20B-04: unknown dependency T19C-??
@@ -642,7 +599,6 @@
 - T20B-06: unknown dependency T10A-??
 - T20B-06: unknown dependency T11-??
 - T20B-06: unknown dependency T12-??
-- T20B-06: unknown dependency T14A-??
 - T20B-06: unknown dependency T15A-??
 - T20B-07: unknown dependency T08-??
 - T20B-07: unknown dependency T11-??
@@ -651,7 +607,6 @@
 - T20B-07: unknown dependency T15B-??
 - T20B-07: unknown dependency T18-??
 - T20B-07: unknown dependency T21-??
-- T20B-08: unknown dependency T03-??
 - T20B-08: unknown dependency T05-??
 - T20B-08: unknown dependency T07A-??
 - T20B-08: unknown dependency T08-??
@@ -666,13 +621,11 @@
 - T20B-09: unknown dependency T13B-??
 - T20B-09: unknown dependency T15B-??
 - T20B-09: unknown dependency T16B-??
-- T20B-10: unknown dependency T03-??
 - T20B-10: unknown dependency T05-??
 - T20B-10: unknown dependency T21-??
 - T20B-11: unknown dependency T05-??
 - T20B-11: unknown dependency T06A-??
 - T20B-11: unknown dependency T16A-??
-- T20B-12: unknown dependency T03-??
 - T20B-12: unknown dependency T04-??
 - T20B-12: unknown dependency T07A-??
 - T20B-12: unknown dependency T07B-??
@@ -689,7 +642,6 @@
 - T20B-14: unknown dependency T18-??
 - T20B-14: unknown dependency T19C-??
 - T20B-14: unknown dependency T21-??
-- T20B-15: unknown dependency T03-??
 - T20B-15: unknown dependency T14B-??
 - T20B-15: unknown dependency T21-??
 - T20B-16: unknown dependency T04-??
@@ -698,7 +650,6 @@
 - T20B-16: unknown dependency T16C-??
 - T20B-17: unknown dependency T19B-??
 - T20B-17: unknown dependency T21-??
-- T20B-18: unknown dependency T03-??
 - T20B-18: unknown dependency T14B-??
 - T20B-18: unknown dependency T15B-??
 - T20B-18: unknown dependency T16A-??
