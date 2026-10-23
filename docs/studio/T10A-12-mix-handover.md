@@ -3,7 +3,9 @@
 
 ---
 
-## ANNOTATION (Producer, added at review) — read before relying on verdict §6 (line 345) / handover §9 (line 478)
+## ANNOTATION (Producer, added at review) — read the HEALTH/LUXURY use-class premise below before relying on this record
+
+*Find it by text, not by line number — line numbers shift when this annotation is edited. Grep: `use class for HEALTH or LUXURY`.*
 
 **This record predates E-82 and E-84. Two of its premises are superseded; its findings are not.**
 
