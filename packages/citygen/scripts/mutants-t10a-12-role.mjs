@@ -21,7 +21,7 @@
 // kill:
 //
 //   KILLED        the runner ran the tests and its summary reports "Tests N failed"
-//   SURVIVED      the runner ran the tests and they passed (the mutant is not guarded)
+//   SURVIVED      the runner ran the tests and at least one PASSED (zero passes = nothing observed)
 //   NO_TESTS_RAN  the runner collected no test at all ("Tests no tests"): the mutant broke the MODULE
 //   FILE_FAILED   a test FILE failed but no test reported a failure: the mutant broke the FILE
 //   RUNNER_ERROR  the runner started but produced no usable summary (a broken config, a crash)
@@ -99,7 +99,14 @@ function runVitest(args, { runnerEntry = VITEST_ENTRY, command = process.execPat
     return { verdict: 'RUNNER_ERROR', ranAtAll: true, detail: 'the runner reported failing tests but exited 0' };
   }
   if (filesFailed) return { verdict: 'FILE_FAILED', ranAtAll: true, detail: 'a test file failed but no test reported a failure: the file did not load' };
-  if (r.status === 0) return { verdict: 'SURVIVED', ranAtAll: true, detail: '' };
+  if (/No test files found/.test(out)) {
+    return { verdict: 'NO_TESTS_RAN', ranAtAll: true, detail: 'the runner found no test file: nothing was exercised' };
+  }
+  if (r.status === 0) {
+    const passed = /Tests\s+(?:.*\|\s*)?(\d+)\s+passed/.exec(out);
+    if (passed !== null && Number(passed[1]) > 0) return { verdict: 'SURVIVED', ranAtAll: true, detail: '' };
+    return { verdict: 'NO_TESTS_RAN', ranAtAll: true, detail: 'the runner exited 0 without passing a test: nothing was exercised' };
+  }
   return { verdict: 'RUNNER_ERROR', ranAtAll: true, detail: `the runner exited ${r.status} without reporting a failing test` };
 }
 
@@ -198,6 +205,10 @@ const SELFTEST_ROWS = [
     run: () => runVitest(['run', TEST_FILE], { runnerEntry: join(FIXTURES, 'no-such-runner.mjs') }) },
   { case: 'a command that cannot be spawned at all', expected: 'SPAWN_ERROR',
     run: () => runVitest(['run', TEST_FILE], { command: join(FIXTURES, 'no-such-command') }) },
+  { case: 'a -t filter that matches no test title (24 skipped, exit 0)', expected: 'NO_TESTS_RAN',
+    run: () => runVitest(['run', TEST_FILE, '-t', 'no test has this title']) },
+  { case: 'a test path with no test file (passWithNoTests, exit 0)', expected: 'NO_TESTS_RAN',
+    run: () => runVitest(['run', 'test/placement/no-such.test.ts']) },
 ];
 
 const pad = (s, n) => String(s).padEnd(n);
