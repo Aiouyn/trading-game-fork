@@ -37,7 +37,12 @@ interface Args {
   rampWidth: number;
   dragD: number;
   json: boolean;
+  /** Explicitly accept a batch that is smaller than E-76's 20 seeds per style. */
+  allowSmoke: boolean;
 }
+
+/** E-76 is measured on 20 real seeds per style (errata E-75/E-76). Below this it is not the AC. */
+export const E76_REQUIRED_SEEDS = 20;
 
 function usage(): string {
   return [
@@ -49,7 +54,11 @@ function usage(): string {
     "  --ramp-center <money>   topend_ramp_center, default 2000000000 (E-47)",
     "  --ramp-width <n>        topend_ramp_width, default 0.35 (E-47)",
     "  --drag-d <n>            topend_excess_d, default 1.0 (E-60)",
+    "  --allow-smoke           accept fewer than 20 seeds per style (smoke test, NOT an E-76 verdict)",
     "  --json                  print the report as JSON instead of a table",
+    "",
+    "Exit: 0 all ACs pass, 1 an AC failed, 2 unusable input OR an under-sampled batch",
+    "      without --allow-smoke.  E-76 requires 20 seeds per style.",
   ].join("\n");
 }
 
@@ -64,6 +73,7 @@ function parseArgs(argv: string[]): Args {
     rampWidth: DEFAULT_PARAMS.rampWidth,
     dragD: DEFAULT_PARAMS.dragD,
     json: false,
+    allowSmoke: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -99,6 +109,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--json":
         args.json = true;
+        break;
+      case "--allow-smoke":
+        args.allowSmoke = true;
         break;
       case "-h":
       case "--help":
@@ -152,12 +165,37 @@ function main(argv: string[]): number {
     console.error("e76-run: no usable runs");
     return 2;
   }
+
+  // E-76 is a 20-seeds-per-style AC. A smaller batch cannot produce an E-76 verdict, however
+  // green it looks - so refuse to certify one unless the caller says outright that it is a smoke
+  // test. Without this guard a 1-seed file prints "all ACs PASS" and exits 0, which is exactly
+  // the quiet path from a substitute to a verdict.
+  const shortStyles = report.summaries.filter((s) => s.seeds < E76_REQUIRED_SEEDS);
+  if (shortStyles.length > 0 && !args.allowSmoke) {
+    const detail = shortStyles.map((s) => `${s.style}=${s.seeds}`).join(" ");
+    console.error(
+      `SMOKE - ${detail} seeds/style; E-76 requires ${E76_REQUIRED_SEEDS} per style.\n`
+        + "This is NOT an E-76 verdict and must not be reported as one.\n"
+        + "Pass --allow-smoke to run it as a smoke test (exit 2 is retained), or supply the full batch.",
+    );
+    return 2;
+  }
+  if (shortStyles.length > 0) {
+    const detail = shortStyles.map((s) => `${s.style}=${s.seeds}`).join(" ");
+    console.error(
+      `SMOKE - ${detail} seeds/style; E-76 requires ${E76_REQUIRED_SEEDS} per style.\n`
+        + "This is NOT an E-76 verdict. --allow-smoke is set, so the AC result below is diagnostic only.",
+    );
+  }
+
   if (args.json) {
     const json = {
       driftPctGd: params.driftPctGd,
       driftDecimal: pctGdToDecimal(params.driftPctGd),
       windowGd: params.windowGd,
       seeds: runs.length,
+      smoke: shortStyles.length > 0,
+      requiredSeedsPerStyle: E76_REQUIRED_SEEDS,
       summaries: report.summaries,
       verdicts: report.verdicts,
       bCliffs: report.bCliffs,

@@ -119,7 +119,12 @@ export interface Interval {
  * The flow adjustment is E-56 Q10 / E-59 (c): the interval's end net worth is reduced by the
  * external transfers booked on that end day, so a grant or a P2P transfer never reads as growth.
  * Growth is measured geometrically over the interval and normalised to one game day, so any
- * checkpoint grid gives the same answer as a daily one.
+ * checkpoint grid gives the same per-GD rate.
+ *
+ * LIMITATION: only transfers dated on a checkpoint day are subtracted. A transfer booked on a
+ * non-checkpoint day is folded into the next checkpoint and reads as growth. That is exact today
+ * (E-60 records F_d = 0 in this verification) but it is not true of an arbitrary flow schedule;
+ * a full implementation needs the sum of flows across the interval, not just at its end.
  */
 export function intervals(run: RunInput): Interval[] {
   const days = Object.keys(run.netWorth)
@@ -355,7 +360,11 @@ export interface Report {
   bCliffs: { style: Style; cliffPctGd: number; headroomPctGd: number }[];
   /** Per style, the drift at which AC (a) flips. */
   aCliffs: { style: Style; cliffPctGd: number; headroomPctGd: number }[];
-  /** The tightest AC (b) cliff across styles: the binding constraint on the MSI drift. */
+  /**
+   * The tightest cliff across BOTH AC (b) and AC (a) over every style — i.e. the smallest drift
+   * increase that flips any verdict. Conservative on purpose: the comment previously said "AC (b)"
+   * while the computation has always minimised over (a) and (b) together.
+   */
   binding: { style: Style; cliffPctGd: number; headroomPctGd: number };
   allPass: boolean;
 }

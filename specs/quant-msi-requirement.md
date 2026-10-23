@@ -3,9 +3,23 @@
 **Owner:** Quant. **Custodian of the code:** Systems/Engine Dev via **T03-24**.
 **Status:** BLOCKER for E-76. Currently `packages/engine/ledger/src/stubs.ts:16-17` is
 `export const msi = (): number => 1;` — a constant 1, so no drift, and no E-76 rerun is possible.
-**Spec of record:** 03 §3.8 (formula reproduced verbatim below). T03-24 lists
-`packages/engine/ledger/stabilizer/msi.ts` and `msi.test.ts` in its `files:`, and T03-24 is in no
-branch on any of the 90 refs.
+**Spec of record:** 03 §3.8 (formula reproduced verbatim below).
+
+**Where the code goes — E-79 overrides T03-24's `files:` list.** T03-24 lists
+`packages/engine/ledger/stabilizer/msi.ts` and `stabilizer/target.ts`, but **E-79 point 1 forbids
+any new subdirectory under `packages/engine/ledger/`**: a concern no flat file owns "gets a new
+flat file in `src/`", and a card's test file goes to `packages/engine/ledger/test/`, not beside the
+source. The mapping the implementer must follow:
+
+| T03-24 `files:` path | Build it at (E-79) | Test at (E-79) |
+|---|---|---|
+| `stabilizer/msi.ts` | `packages/engine/ledger/src/msi.ts` | `packages/engine/ledger/test/msi.test.ts` |
+| `stabilizer/target.ts` | `packages/engine/ledger/src/target.ts` | `packages/engine/ledger/test/target.test.ts` |
+| `networth/nw.ts` | `packages/engine/ledger/src/nw.ts` | `packages/engine/ledger/test/nw.test.ts` |
+| `money/aggregates.ts` | `packages/engine/ledger/src/aggregates.ts` | `packages/engine/ledger/test/aggregates.test.ts` |
+
+The card's `files:` list stays true as intent; E-79 decides the paths. T03-24 is in no branch on
+any of the 90 refs.
 
 ---
 
@@ -119,8 +133,9 @@ Measured on 3 seeds, average style, the last 400 GD (GD 1000–1400) of a 1,400-
 **The bot grows at ~0.23 %/GD while the money stock grows at 0.08–0.15 %/GD: it is taking share of
 a slow-growing pie, not riding an inflating one.** That is the opposite sign from the AC's
 premise, where drift is the thing that erodes real growth. If the measured MSI drift is ~0.15
-rather than ~0.29, average's real becomes `0.223 − 0.15 = +0.073` — a **profit**, and E-76 (b)
-passes with room instead of failing by 0.3 bp.
+rather than ~0.29, average's real arithmetically becomes `0.223 − 0.15 = +0.073` — a profit rather
+than a loss. **That is what the hypothesis predicts, not a result.** The run that would establish
+it needs the MSI that does not exist yet, and nothing here substitutes for that run.
 
 **Four caveats, all of which must travel with the hypothesis:**
 
@@ -192,6 +207,33 @@ merge.* When T03-24 lands, run:
 npx tsx scripts/quant/e76-run.ts <batch>.json --drift <measured decimal>
 ```
 
-20 real seeds per style, the last 400 GD of a 1,400-GD run. Exit code 0 = all ACs pass; 1 = fail;
-it prints the cliff per style and names the binding one. `scripts/quant/e76-fixture.json` is the
-committed smoke input that proves the runner works today, before MSI exists.
+**20 real seeds per style**, the last 400 GD of a 1,400-GD run. Exit code 0 = all ACs pass; 1 = an
+AC failed; **2 = unusable input, or fewer than 20 seeds in any style**.
+
+**The 20-seed guard is deliberate.** The runner refuses to certify a smaller batch unless
+`--allow-smoke` is passed, and even then it prints `SMOKE — … this is NOT an E-76 verdict` on
+stderr. A 1-seed or 3-seed file would otherwise print `all ACs PASS` and exit 0, which is the quiet
+path from a substitute to a verdict. `scripts/quant/e76-fixture.json` is the committed 3-per-style
+smoke input, and it must be run with `--allow-smoke`:
+
+```
+npx tsx scripts/quant/e76-run.ts scripts/quant/e76-fixture.json --drift 0.0029 --allow-smoke
+```
+
+## 8. Judgement calls, stated so they can be overruled
+
+These are **decisions**, not recoveries. The original `analyze.py` is lost, so where the errata is
+silent the choice below is mine and QA may overrule it.
+
+1. **The P90 percentile convention is linear interpolation** (numpy / Excel default). The lost
+   script may have used nearest-rank; E-75's published `0.102` does not identify which. Isolated in
+   one function, `percentile()`, and pinned by a test. It does not move AC (b).
+2. **`AC_EPSILON = 1e-9`** in the verdict comparison. E-76 writes "≤ 0.07" and "≥ 0", so a
+   measurement exactly *on* its limit must pass — but `0.223 − 0.293` is `-0.07000000000000001` in
+   binary floating point, which failed the gate at the exact drift that is supposed to be the
+   cliff. Seven orders of magnitude below any rate measurable here.
+3. **`w` is read at the window-end net worth** for the whole 400-GD mean, rather than per-day or at
+   each seed's peak. E-76 says the mean is taken "at the $2B, $5B and $20B points" but does not fix
+   which N to use for a style statistic. Reading it at the window end is the simplest defensible
+   choice and it changes nothing for managed and average (they sit below drift, so the drag is
+   inert). It does move excellent's number, so it is the one to revisit if E-75 is ever re-derived.

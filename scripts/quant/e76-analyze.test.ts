@@ -18,6 +18,7 @@ import {
   rampW,
   summarizeStyle,
   measureSeed,
+  windowIntervals,
   type Params,
   type RunInput,
   type SeedResult,
@@ -53,15 +54,24 @@ describe("units: decimal fraction vs %/GD number", () => {
   });
 
   it("recovers the drift E-60 subtracted, from E-60's own published rows", () => {
-    // E-60 §Verification table: nominal %/GD, real in brackets. nominal - real must be one drift.
+    // E-60 §Verification: excellent medians 0.417 / 0.296 / 0.290 at $2B / $5B / $20B
+    // (real +0.127 / +0.006 / +0.000). These are the THREE rows E-80 relies on.
     const rows = [
       { label: "excellent @2B", nominal: 0.417, real: 0.127 },
-      { label: "excellent @5B", nominal: 0.239, real: -0.051 },
+      { label: "excellent @5B", nominal: 0.296, real: 0.006 },
       { label: "excellent @20B", nominal: 0.29, real: 0.0 },
     ];
     for (const r of rows) expect(r.nominal - r.real).toBeCloseTo(0.29, 3);
     // and that 0.29 is the decimal 0.0029, NOT 0.29 decimal
     expect(pctGdToDecimal(rows[0]!.nominal - rows[0]!.real)).toBeCloseTo(0.0029, 6);
+
+    // The mid-book rows are a DIFFERENT style, not excellent: managed 0.239 / −0.051,
+    // average 0.234 / −0.056 (E-60). Asserting them here keeps the labels honest.
+    const midBook = [
+      { label: "managed", nominal: 0.239, real: -0.051 },
+      { label: "average", nominal: 0.234, real: -0.056 },
+    ];
+    for (const r of midBook) expect(r.nominal - r.real).toBeCloseTo(0.29, 3);
   });
 
   it("does not silently accept the 100x error: 0.0059 is not the average cliff", () => {
@@ -304,14 +314,84 @@ describe("E-76 verdicts", () => {
     expect(report.binding.headroomPctGd * 100).toBeCloseTo(0.3, 3);
   });
 
-  it("fails AC (c) when a seed's nominal goes negative under a heavy drag", () => {
-    // A book above drift whose w is 1 loses all excess: nominal collapses to the drift, not below.
-    // Force a negative nominal by measuring against a drift higher than the raw growth.
-    const runs = flatStyle("average", 0.10, 1.1e9);
+  it("fails AC (c) when a seed's nominal growth is negative", () => {
+    // A book shrinking at −0.5 %/GD sits below drift, so E-60's drag does not apply and the
+    // nominal stays at g_raw. AC (c) wants nominal > 0, so this must FAIL.
+    const runs = flatStyle("average", -0.5, 1.1e9);
     const report = analyze(runs, params(0.29));
     const c = report.verdicts.find((v) => v.ac === "c")!;
-    expect(c.pass).toBe(true); // below-drift books keep their raw rate, so (c) still holds
-    expect(c.measured).toBeCloseTo(0.10, 3);
+    expect(c.measured).toBeCloseTo(-0.5, 3);
+    expect(c.pass).toBe(false);
+  });
+});
+
+/**
+ * Threshold pinning — mutants QA2 proved survive the behavioural tests above.
+ *
+ * Each test here exists because a specific semantic mutant passed all 30 of the original suite:
+ *   M3  excellent's (b) limit 0 → −0.07 (the R6 "excellent should need excellent play" number)
+ *   M4  E76_LIMITS.p90RealLoss 0.11 → 0.12
+ *   M6  the window boundary `>=` → `>`
+ *   M9  rampW ignoring its width argument
+ * The literals below are deliberate duplicates of the errata. If a limit changes, BOTH the
+ * constant and this block must change, which is the point: a silent loosening now fails loudly.
+ */
+describe("E-76 thresholds are pinned, not just referenced", () => {
+  function params(driftPctGd: number): Params {
+    return { ...DEFAULT_PARAMS, driftPctGd };
+  }
+
+  it("the limits are the errata's exact literals", () => {
+    // E-76: (a) P90 real loss ≤ 0.11; (b) managed/average median real loss ≤ 0.07.
+    expect(E76_LIMITS.p90RealLoss).toBe(0.11);
+    expect(E76_LIMITS.medianRealLoss).toBe(0.07);
+  });
+
+  it("excellent's (b) limit is 0, not the mid-book −0.07 (kills M3)", () => {
+    // excellent g_raw 0.566 at $2e9 (w = 0.5); drift 0.616 puts the book BELOW drift, so the
+    // drag does not act and real = 0.566 − 0.616 = −0.050. That is inside the mid-book −0.07 band
+    // but outside excellent's 0 band, so only a correct limit fails it.
+    const runs = flatStyle("excellent", 0.566, 2e9);
+    const report = analyze(runs, params(0.616));
+    const b = report.verdicts.find((v) => v.ac === "b")!;
+    expect(b.measured).toBeCloseTo(-0.05, 3);
+    expect(b.limit).toBe(0);
+    expect(b.pass).toBe(false);
+  });
+
+  it("AC (a) still passes just inside 0.11 and fails just outside (kills M4)", () => {
+    // average below drift: real = 0.223 − drift, and P90 of the loss equals −real.
+    // drift 0.328 → loss 0.105 (pass). drift 0.338 → loss 0.115, past the 0.11 ceiling (fail).
+    const inside = analyze(flatStyle("average", 0.223, 1.1e9), params(0.328));
+    const outside = analyze(flatStyle("average", 0.223, 1.1e9), params(0.338));
+    const aIn = inside.verdicts.find((v) => v.ac === "a")!;
+    const aOut = outside.verdicts.find((v) => v.ac === "a")!;
+    expect(aIn.measured).toBeCloseTo(0.105, 3);
+    expect(aIn.pass).toBe(true);
+    expect(aOut.measured).toBeCloseTo(0.115, 3);
+    expect(aOut.limit).toBe(0.11);
+    expect(aOut.pass).toBe(false);
+  });
+
+  it("the measurement window is exactly the last 400 GD (kills M6)", () => {
+    // 1,400-GD run on the 8-GD grid: the window covers GD 1000..1400 inclusive of its start,
+    // which is 50 intervals. An off-by-one at the boundary drops one and reads 49.
+    const run = runAt("s", "average", 0.223, 1.1e9);
+    const ivs = windowIntervals(run, 400);
+    expect(ivs).toHaveLength(50);
+    expect(ivs[0]!.fromGd).toBe(1000);
+    expect(ivs[ivs.length - 1]!.toGd).toBe(1400);
+  });
+
+  it("the ramp actually uses its width argument (kills M9)", () => {
+    // A hard-coded 0.35 makes --ramp-width dead. At $3B a wider ramp is materially softer.
+    const narrow = rampW(3e9, 2e9, 0.35);
+    const wide = rampW(3e9, 2e9, 0.7);
+    expect(wide).not.toBeCloseTo(narrow, 6);
+    // and the centre stays exactly 0.5 whatever the width
+    expect(rampW(2e9, 2e9, 0.7)).toBeCloseTo(0.5, 12);
+    // a wider ramp is flatter: closer to 0.5 than the narrow one at the same N
+    expect(Math.abs(wide - 0.5)).toBeLessThan(Math.abs(narrow - 0.5));
   });
 });
 
