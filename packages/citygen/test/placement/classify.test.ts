@@ -23,6 +23,7 @@ import {
   parcelFlags,
   tierOf,
 } from '../../src/placement/classify';
+import { copyMutants, roleColumnReads } from './role-column-scan';
 import type {
   FixedPointCoord,
   PlacementDistrict,
@@ -107,23 +108,9 @@ const deriveRole = (tier: string, f: FlagRow): string => {
   throw new Error(`unknown tier ${tier}`);
 };
 
-/**
- * The CODE lines of `src` that read a `role` field - the shape a copy of the shipped role
- * column takes, and the only way that column can be read.
- *
- * The scan is over the code lines only: a line whose first non-space character is a comment
- * marker is prose, and this file's prose names the column on purpose.
- */
-const roleColumnReads = (src: string): string[] => {
-  const hits: string[] = [];
-  src.split('\n').forEach((text, i) => {
-    const trimmed = text.trim();
-    if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
-    if (trimmed === '') return;
-    if (/\.role\b/.test(text) || /\brole\s*:/.test(text)) hits.push(`${i + 1}: ${trimmed}`);
-  });
-  return hits;
-};
+// The source-level scan is a PARSER, not a regex: see test/placement/role-column-scan.ts for why
+// (fork PR #19, QA finding F-1) and for the five committed copy mutants R17..R21, whose text is
+// committed once in role-copy-mutants.json so this test and the kill harness cannot drift apart.
 
 /**
  * The rows where a role function differs from the independent ladder, as
@@ -253,61 +240,53 @@ describe('T10A-12 classify: the district role', () => {
     // on all 105 districts today, so a module that read `row.role` would return the same 105
     // values and pass every check above. Only a source-level check can tell them apart.
     //
-    // A code line that reads `.role` off a row, or that declares `role:` in an object literal,
-    // is the shape a copy takes - there is no other way to read the column. The shipped module
-    // derives from `flags?.cbd`, `flags?.port`, `flags?.station` and `flags?.riverOrCanal` plus
-    // the parsed tier, so it contains neither.
+    // The scan parses the module with the TypeScript parser and rejects the identifier `role`
+    // (or the exact string 'role') in ANY position: a member read (`.role`), a destructuring
+    // binding (`{ role }` and the renamed `{ role: alias }`), a computed key (`['role']`), an
+    // object or type key, and a plain variable. The shipped module names the column only in
+    // comments, which are trivia and therefore not nodes, so it contains no hit at all.
     expect(roleColumnReads(CLASSIFY_SRC)).toEqual([]);
   });
 
   it('a module that COPIED the shipped role column is killed (the committed copy mutants)', () => {
-    // The mutants are committed here so the coverage lives in the repo, in the house pattern of
-    // rules.test.ts's R1..R16. They are applied to the SOURCE TEXT of the module, because that is
-    // the only level at which the difference between a copy and a derivation is observable: the
-    // derivation and the shipped column agree on all 105 districts today, so a copy returns the
-    // same values and every behavioural check passes with it in place.
+    // The mutants live in ./role-copy-mutants.json and are built by ./role-column-scan.ts, so this
+    // test and the kill harness (scripts/mutants-t10a-12-role.mjs) run the SAME five strings, and
+    // the harness applies them to the real module instead of re-typing them. They are source-level
+    // because that is the only level at which the difference between a copy and a derivation is
+    // observable: the derivation and the shipped column agree on all 105 districts today, so a
+    // copy returns the same values and every behavioural check above passes with it in place.
     //
-    // THREE mutants, one per way the check can be weakened. Each is killed ONLY by the half of
-    // the check it names, so weakening ANY half of the check fails this test rather than
-    // silently passing it (the PR #18 defect class: a check that claims a property it does not
-    // prove).
-    const copy = (extra?: string): string =>
-      CLASSIFY_SRC.split('\n')
-        .map((line) => {
-          if (/const\s+riverOrCanal\s*=/.test(line)) {
-            return `  const roleCol = (flagsJson as { districts?: { distId: string; role: string }[] }).districts?.find((r) => r.distId === d.id)?.role ?? 'MIXED_CORE';`;
-          }
-          if (/if\s*\(cbd\)\s*return/.test(line)) return `  if (roleCol) return roleCol as DistrictRole;`;
-          return line;
-        })
-        .join('\n')
-        .concat(extra ?? '');
+    // All five are GENUINE copies - each reads the shipped column and returns it before the
+    // derivation - and each isolates ONE spelling of the read (R19 also names the variable its
+    // shorthand binds, twice, which is what returning a shorthand copy costs), so weakening a
+    // spelling fails this test instead of silently passing it. The spellings, one mutant each:
+    // member+key (R17), member (R18), binding+name (R19), index (R20), literal (R21).
+    const mutants = copyMutants(CLASSIFY_SRC);
+    expect(mutants.map((m) => m.id)).toEqual(['R17', 'R18', 'R19', 'R20', 'R21']);
+    expect(mutants.map((m) => m.kinds.join('+')).join(',')).toBe(
+      'key+member,member,binding+name+name,index,literal',
+    );
 
-    // R17 - the copy as a developer would write it: it reads the column off a row (`.role`).
-    // The mutation landed, and the check rejects it.
-    const r17 = copy();
-    expect(r17).toContain('roleCol');
-    expect(r17).not.toBe(CLASSIFY_SRC);
-    expect(roleColumnReads(r17).length).toBeGreaterThan(0);
+    for (const m of mutants) {
+      // It really is a copy: it returns the column before the derivation.
+      expect(m.source, m.id).not.toBe(CLASSIFY_SRC);
+      expect(m.source, `${m.id} (${m.shape})`).toContain(m.guard);
+      // The committed check rejects it, on exactly the spelling it was written for.
+      expect(roleColumnReads(m.source).map((h) => h.kind), `${m.id} (${m.shape})`).toEqual(m.kinds);
+    }
 
-    // R18 - the copy WITHOUT a `role:` annotation anywhere, so it trips ONLY the `.role` half of
-    // the check. If the `.role` half is weakened or removed, R18 survives and this test fails.
-    const r18 = copy().replace(/\{\s*distId:\s*string;\s*role:\s*string\s*\}/, '{ distId: string }');
-    expect(r18).not.toContain('role: string');
-    expect(r18).toContain('.role');
-    expect(roleColumnReads(r18).filter((h) => h.includes('.role')).length).toBeGreaterThan(0);
+    // Both destructuring spellings are caught: the shorthand and the rename.
+    expect(roleColumnReads('const { role } = row;').map((h) => h.kind)).toEqual(['binding']);
+    expect(roleColumnReads('const { role: alias } = row;').map((h) => h.kind)).toEqual(['binding']);
+    // And so are the string spellings a regex has to guess at: the bracket key, the same key in
+    // double quotes, a computed key, and the column name passed to Reflect.get.
+    expect(roleColumnReads("const x = row['role'];").map((h) => h.kind)).toEqual(['index']);
+    expect(roleColumnReads('const x = row["role"];').map((h) => h.kind)).toEqual(['index']);
+    expect(roleColumnReads("const k = 'role'; const x = row[k];").map((h) => h.kind)).toEqual(['literal']);
+    expect(roleColumnReads('const x = Reflect.get(row, "role");').map((h) => h.kind)).toEqual(['literal']);
 
-    // R19 - a source that declares `role:` and nothing else, so it trips ONLY the `role:` half.
-    // If that half is weakened or removed, R19 survives and this test fails.
-    const r19 = `${CLASSIFY_SRC}\nconst copyShape = { role: 'CBD' };\n`;
-    expect(roleColumnReads(r19).filter((h) => h.includes('role:')).length).toBeGreaterThan(0);
-
-    // THE KILL: the SAME check that passes on the shipped module rejects every copy. The check is
-    // called, not restated, so weakening it fails this test instead of silently passing it.
+    // THE KILL: the SAME check that passes on the shipped module rejects every copy above.
     expect(roleColumnReads(CLASSIFY_SRC)).toEqual([]);
-    expect(roleColumnReads(r17).length).toBeGreaterThan(0);
-    expect(roleColumnReads(r18).length).toBeGreaterThan(0);
-    expect(roleColumnReads(r19).length).toBeGreaterThan(0);
   });
 
   it('the derivation ORDER is load-bearing: tier-before-flags gives a different answer', () => {

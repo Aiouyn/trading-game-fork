@@ -1,0 +1,41 @@
+{
+  "anchor": "const riverOrCanal =",
+  "note": "The five committed copy mutants behind AC-10A-12-ROLE-PA. Each `read` is inserted after the anchor line of districtRole() and is followed by its `guard`, so the mutant reads the shipped `role` column and returns it BEFORE the derivation: it compiles, runs, and agrees with the derivation on all 105 districts. That is the point - the difference is only visible in the source. The same file feeds the test (test/placement/role-column-scan.ts) and the kill harness (scripts/mutants-t10a-12-role.mjs), so the committed mutants and the mutants that are proven KILLED cannot drift apart.",
+  "mutants": [
+    {
+      "id": "R17",
+      "shape": "a member read, with the row type naming the column",
+      "read": "const roleCol = (flagsJson as { districts?: { distId: string; role: string }[] }).districts?.find((r) => r.distId === d.id)?.role;",
+      "guard": "if (roleCol) return roleCol as DistrictRole;",
+      "kinds": ["key", "member"]
+    },
+    {
+      "id": "R18",
+      "shape": "a member read with no `role:` key anywhere",
+      "read": "const roleCol = ((flags ?? {}) as unknown as Record<string, unknown>).role as DistrictRole | undefined;",
+      "guard": "if (roleCol) return roleCol as DistrictRole;",
+      "kinds": ["member"]
+    },
+    {
+      "id": "R19",
+      "shape": "a shorthand destructuring binding (the shape QA used against the old regex)",
+      "read": "const { role } = (flagsJson as any).districts.find((r: { distId: string }) => r.distId === d.id);",
+      "guard": "if (role) return role as DistrictRole;",
+      "kinds": ["binding", "name", "name"]
+    },
+    {
+      "id": "R20",
+      "shape": "a bracket read with the string literal as the key",
+      "read": "const roleCol = (flagsJson as any).districts.find((r: { distId: string }) => r.distId === d.id)?.['role'] as DistrictRole | undefined;",
+      "guard": "if (roleCol) return roleCol as DistrictRole;",
+      "kinds": ["index"]
+    },
+    {
+      "id": "R21",
+      "shape": "a computed-key read: the column name is held in a variable",
+      "read": "const roleKey = 'role'; const roleCol = (flagsJson as any).districts.find((r: { distId: string }) => r.distId === d.id)?.[roleKey] as DistrictRole | undefined;",
+      "guard": "if (roleCol) return roleCol as DistrictRole;",
+      "kinds": ["literal"]
+    }
+  ]
+}
