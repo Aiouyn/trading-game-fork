@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import path from "node:path";
+import pkg from "./package.json";
 
 // Pin the project root: a stray package-lock.json in the home folder otherwise makes Next guess the wrong root.
 const root = path.resolve(__dirname);
@@ -9,6 +11,11 @@ const root = path.resolve(__dirname);
 // resolve it to the type-only stub so the shell builds; the real module wins as soon as it exists.
 const cityEntry = existsSync(path.join(root, "src/city/index.ts")) ? "./src/city/index.ts" : "./tests/unit/shell/__mocks__/city.ts";
 
+// About's version line (17B SET-08, Producer ruling): package.json version + short commit, injected at build.
+// "dev" only when the build is not from a git checkout (the git command fails).
+function buildSha(): string {
+  try { return execSync("git rev-parse --short=7 HEAD", { cwd: root, stdio: ["ignore", "pipe", "ignore"] }).toString().trim() || "dev"; } catch { return "dev"; }
+}
 // Dev-only design-system sheets: on in `next dev`, and in a production build only with QUAY_DS=1 (e2e).
 // Off, the demo module is swapped for an empty stub at resolve time, so none of it reaches .next/static.
 const dsOn = process.env.NODE_ENV !== "production" || process.env.QUAY_DS === "1";
@@ -21,6 +28,11 @@ const nextConfig: NextConfig = {
   // the gate: an unset var would stay a runtime `process.env` read and the hook / dev-only /__ds code would ship.
   // Only the e2e build (playwright.config webServer env) sets them to "1".
   env: {
+    NEXT_PUBLIC_RELEASE: pkg.version,
+    // A pin from the environment wins (PR #7 B-1 ruling: a committed screenshot can only ever carry
+    // the parent commit's SHA, so the e2e job pins a deterministic token). A real build has no pin and
+    // still gets the real short commit; buildSha() itself is unchanged.
+    NEXT_PUBLIC_BUILD_SHA: process.env.NEXT_PUBLIC_BUILD_SHA || buildSha(),
     QUAY_DS: process.env.QUAY_DS === "1" ? "1" : "0",
     // City e2e hook (window.__city): on only in the e2e build (vite harness / NEXT_PUBLIC_CITY_E2E=1).
     NEXT_PUBLIC_CITY_E2E: process.env.NEXT_PUBLIC_CITY_E2E === "1" ? "1" : "0",

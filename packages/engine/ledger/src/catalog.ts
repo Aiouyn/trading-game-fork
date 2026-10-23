@@ -18,11 +18,11 @@ export interface CodeRow {
   elasticSectors?: string[]; restrictedOk?: boolean; requestableBy?: number[] | 'ALL'; illicit?: boolean;
 }
 type Leg = number | '@ASSET' | '@' | null;
-/** One row of catalog.csv v2 (generated into catalog-data.ts). `derived` = class defaults, no card row (TODO(systems)). */
+/** One row of the canonical catalog.csv (generated into catalog-data.ts). `derived` = class defaults from a Systems ruling or an erratum registration, not a card row. E-81 point 1: `derived` is a PROVENANCE MARKER only - the row is a full member of the catalog and counts. `derivedFrom` names the erratum that produced it. */
 export interface CatalogSeedRow {
   code: string; cls: FlowClass; owner: number; cf: CashFlow | ''; tpl: readonly TemplateId[]; legA: Leg; legB: Leg;
   sectors: readonly string[]; restrictedOk: boolean; requestableBy: readonly number[] | 'ALL'; illicit: boolean;
-  taxTag?: string; family?: string; derived?: true;
+  taxTag?: string; family?: string; derived?: true; derivedFrom?: string;
 }
 
 /** 03 §3.3.3 last paragraph (T03-02 :47-48). */
@@ -46,6 +46,15 @@ export const LEDGER_EXTENSION_CODES: readonly CodeRow[] = [
   ...['ESCROW_CONFLICT_CLAWBACK', 'ESCROW_CONFLICT_RELEASE'].map((code): CodeRow => ({
     code, cls: 'TRANSFER', owner: 3, cf: 'OP', allowedTemplates: ['ESCROW_SETTLE'], descriptionKey: `led.code.${code}`, restrictedOk: false, requestableBy: [13], illicit: false })),
 ];
+
+/**
+ * E-81 point 5 / AC-03-ER81-COUNTS: the 03 §3.4-origin subset IS a spec number, so it stays pinned to the spec — the
+ * 384 §3.4 rows less PD-12's two `OPS_*` removals, with E-46's fence counted as a TRANSFER rather than a FAUCET.
+ * The LIVE catalog is never pinned to a literal: its histogram is derived from CATALOG_SEED (E-81 point 5).
+ */
+export const SPEC_COUNTS_03: Readonly<Record<FlowClass, number>> = {
+  FAUCET: 36, SINK: 86, TRANSFER: 208, CREDIT_CREATE: 12, CREDIT_DESTROY: 13, REVALUE: 27,
+};
 
 /** Systems answer (errata E-3): the only codes on CB_CREDIT / CB_CREDIT_UNWIND. They feed TickFlows.cbCredit. */
 export const CBK_CREDIT_CODES: readonly string[] = [

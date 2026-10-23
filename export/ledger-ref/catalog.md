@@ -1,30 +1,29 @@
 # V3 reason-code catalog (reference, non-normative)
 
-Full data: `catalog.csv` (393 rows: 384 from 03 §3.4, 6 registered by 24 §8, 2 PD-12 canonical CONFLICT_* codes from 12). Columns: code, class, owner, cf, allowedTemplates, templates_source (card file:line), v3_source (03 file:line and section), note, description.
+Full data: `catalog.csv` (456 rows: the canonical catalog — 382 rows that are 03 §3.4 codes, plus 74 rows registered by errata from units 04/07/09/10/11/12/14/15/16). Columns: code, class, owner, cf, allowedTemplates, templates_source (card file:line or erratum), v3_source (03 file:line and section), note, description, legA, legB, sector, taxTag, family, restrictedOk, requestableBy, illicit, cols_source, derived.
 
-- **Classes** come from the 03 §3.4.x section each row sits in.
+> **E-81 (2026-10-22) — this file was stale and is corrected here.** `catalog.csv` is the **canonical** catalog and the **unversioned** file is the **newest** revision: the versioned files (`catalog.v1.csv` … `catalog.v4.csv`) are **backups** of earlier revisions, and the code sets form a strict superset chain v1 ⊂ v2 ⊂ v3 ⊂ v4 ⊂ `catalog.csv`. `derived` is a **provenance marker only** — a derived row is a full member of the catalog and counts. See E-81 for the full ruling, the counts, and the generator's contract.
+
+- **Classes** come from the 03 §3.4.x section each row sits in, except where an erratum reclasses a row (E-46 moved `OPS_FENCE_SALE_NPC` out of FAUCET; E-81 moved `ACCT_STARTER_GIFT` to REVALUE).
 - **allowedTemplates** come from the card rows (`Tpl` column) of T03-02 (FAUCET, SINK), T03-03 and T03-04 (TRANSFER A/B) and T03-05 (CREDIT_*, REVALUE).
-- Every one of the 384 codes was found in exactly one card row. No card row is missing from 03, and none is absent from it.
-- Every card template is inside the class's `CLASS_TEMPLATES` set (T03-02 `:47-48`); I checked by script and found 0 violations.
+- The 03 §3.4 codes are exactly those whose `v3_source` names the 03 spec file — **384** of them in the spec tables, of which **382** survive PD-12 (the two `OPS_*` rows become the canonical `CONFLICT_*` rows) and E-46 (the fence leaves FAUCET). The rest are erratum registrations.
+- Every row's `allowedTemplates` ⊆ `CLASS_TEMPLATES[class]` (03 §3.3.3). The generator refuses to emit a seed that breaks this.
 
 ## Counts per class (03 §3.4)
 
-| Class | 03 section (start line) | Count | Card |
-|---|---|---|---|
-| FAUCET | §3.4.1 (`03:511`) | **37** | T03-02 |
-| SINK | §3.4.2 (`03:553`) | **86** | T03-02 |
-| TRANSFER | §3.4.3 (`03:644`) | **209** | T03-03 (83) + T03-04 (126) |
-| CREDIT_CREATE | §3.4.4 (`03:858`) | **12** | T03-05 |
-| CREDIT_DESTROY | §3.4.5 (`03:875`) | **13** | T03-05 |
-| REVALUE | §3.4.6 (`03:897`) | **27** | T03-05 |
-| **Total in 03** | | **384** | |
-| Registered by 24 §8 (via T03-05 `:29`) | | 6 (3 FAUCET: `ACCT_BACKGROUND_DISCOUNT`, `CBK_IOR_P`, `CBK_DEPOSIT_INTEREST_P`; 3 TRANSFER: `BIZ_MARKETING_B2B`, `CBK_IOR_W`, `CBK_DEPOSIT_INTEREST_W`) | T03-05 |
-| **Catalog total after T03-05** | | **390** | |
+| Class | 03 section (start line) | Spec table rows | Surviving §3.4 rows (E-81) | Card |
+|---|---|---|---|---|
+| FAUCET | §3.4.1 (`03:511`) | **37** | **36** (the fence moved to TRANSFER, E-46) | T03-02 |
+| SINK | §3.4.2 (`03:553`) | **86** | **86** | T03-02 |
+| TRANSFER | §3.4.3 (`03:644`) | **209** | **208** (`OPS_LOOT_CASH`/`OPS_RANSOM` → `CONFLICT_*`, PD-12; the fence joins, E-46) | T03-03 (83) + T03-04 (126) |
+| CREDIT_CREATE | §3.4.4 (`03:858`) | **12** | **12** | T03-05 |
+| CREDIT_DESTROY | §3.4.5 (`03:875`) | **13** | **13** | T03-05 |
+| REVALUE | §3.4.6 (`03:897`) | **27** | **27** | T03-05 |
+| **Total in 03** | | **384** | **382** | |
 
-**37 FAUCET / 86 SINK: confirmed** for 03 §3.4.1/§3.4.2 (and T03-02 `:25`). The other card figures are also confirmed: TRANSFER 83 + 126 = 209 (T03-03/04), CREDIT_CREATE 12, CREDIT_DESTROY 13, REVALUE 27 (T03-05 `:29`).
-After 24 §8 registration, the FAUCET count used at runtime is **40** (37 + 3) and TRANSFER is **212**. Anyone counting the live catalog should expect those numbers, not 37 and 209.
+**The live catalog is larger than §3.4, by rule.** 24 R23 registers codes 03 lacks in 03's catalog with the class the module states; PD-12 renames two; E-14 adds the seven settlement codes; and each later unit's erratum registers its own codes. The live per-class histogram is **derived from the seed**, not written down anywhere — see E-81 point 5 and `AC-03-ER81-COUNTS`. The current seed holds **454** rows; with the 5 ledger extension codes (E-5) the live catalog holds **459**.
 
-**Card defect.** The `REGISTERED_BY_24_8` rows in T03-05 are an unrendered placeholder `@@REG248@@` (`cards/03/T03-05.md:120`). The six codes and their classes come from 24 §8 (`24-DECISIONS-REGISTER.md:780,788,796`) and T03-05 `:121` (the `_P` codes are FAUCET via MINT, the `_W` codes are TRANSFER). In the CSV their templates are marked *derived*. Owner, sectors, legs and family must be filled before T03-05 can be implemented.
+**Card defect, closed by E-81.** The `REGISTERED_BY_24_8` rows in T03-05 were an unrendered placeholder `@@REG248@@` (`cards/03/T03-05.md:120`). The six codes and their classes come from 24 §8 (`24-DECISIONS-REGISTER.md:780,788,796`) and T03-05 `:121` (the `_P` codes are FAUCET via MINT, the `_W` codes are TRANSFER). They are in the catalog, and their class defaults are recorded in the `derived` column with their erratum reference.
 
 ## PD-12 aliases (Producer decision, owner sign-off pending; ledger-core §11)
 
@@ -42,24 +41,27 @@ Implementation notes:
 ## Other aliases
 The full 24 §8 alias table (26 rows) is quoted in T03-05 `:90-118` and `24-DECISIONS-REGISTER.md:771-800`. `CBK_INTEREST_ON_RESERVES` (`03:850`) is superseded for those flows by `CBK_IOR_P/_W` and `CBK_DEPOSIT_INTEREST_P/_W` (24 §8).
 
-## catalog.csv v2 (2026-10-20 23:55 CEST)
+## Catalog revisions (E-81, 2026-10-22)
 
-v2 adds the columns `legA, legB, sector, taxTag, family, restrictedOk, requestableBy, illicit, cols_source, derived` (v1 kept as `catalog.v1.csv`). Source: the per-class card tables T03-02..05 (legend at `cards/03/T03-02.md:80-91`, which transcribes 03 §3.4 + §3.3.3 value legs + §3.5.6 + §3.6). Each row's `cols_source` gives the card file:line.
+**The unversioned `catalog.csv` is the canonical file and the newest revision.** The versioned files are backups of earlier revisions, and the code sets form a strict superset chain:
 
-| column | from card row | derived (flagged in `derived`) | coverage |
-|---|---|---|---|
-| legA / legB | 384 | 8 | 392/392 |
-| sector | 384 (103 rows non-empty: ELASTIC_IN/OUT) | 8 | 392/392 |
-| restrictedOk | 384 (35 = Y) | 8 (all N, except inherited) | 392/392 |
-| requestableBy | 384 (16 non-owner) | 8 | 392/392 |
-| taxTag / family | 384 | 8 | 392/392 |
-| illicit | 03 §3.12.14 list (T03-02 legend) | CONFLICT_* inherit Y | 392/392 |
+| file | rows | what changed |
+|---|---|---|
+| `catalog.v1.csv` | 392 | the original 9-column catalog |
+| `catalog.v2.csv` | 392 | + the columns `legA, legB, sector, taxTag, family, restrictedOk, requestableBy, illicit, cols_source, derived` |
+| `catalog.v3.csv` | 399 | + the 7 E-14 settlement codes |
+| `catalog.v4.csv` | 401 | + `ACCT_HANDLE_FEE`, `ACCT_HOME_CITY_FEE` (E-21) and E-21's two owner corrections |
+| **`catalog.csv`** | **456** | + E-22, E-25, E-26, E-29, E-30, E-33, E-38, E-39, E-44, E-50, E-52 registrations, E-46's fence reclass, E-81's `ACCT_STARTER_GIFT` reclass and the three `CITY_*` leg fixes |
 
-Derived rows (8): the six 24 §8 registrations (`ACCT_BACKGROUND_DISCOUNT`, `BIZ_MARKETING_B2B`, `CBK_IOR_P/_W`, `CBK_DEPOSIT_INTEREST_P/_W`; their card block is the unrendered `@@REG248@@` placeholder at T03-05:118), which get class defaults (FAUCET legA 4110, else `-`; restrictedOk N; owner-only), and `CONFLICT_RANSOM/CONFLICT_CASH_LOOT`, which inherit every v2 column from the OPS_* row they replace (PD-12).
+Source: the per-class card tables T03-02..05 (legend at `cards/03/T03-02.md:80-91`, which transcribes 03 §3.4 + §3.3.3 value legs + §3.5.6 + §3.6) plus the errata that registered the rest. Each row's `cols_source` gives the card file:line or the erratum that produced it.
 
-`restrictedOk = Y` (41 codes; ACCT_LICENSE_FEE moved to N by E-21; E-22 adds LIFE_STORAGE, LIFE_RESTORATION, LIFE_SECURITY, LIFE_RENT, LIFE_EXPERIENCE, LIFE_BERTH_RENT, LIFE_HANGAR_RENT): ACCT_CHARTER_FEE, BIZ_PURCHASE_NEW, BIZ_UPKEEP, BIZ_UPGRADE_CAPEX, BIZ_PERMIT_FEE, CMP_INCORPORATION_FEE, PROP_PURCHASE_FROM_ELASTIC, PROP_UPKEEP, PROP_DEVELOPMENT_CAPEX, PROP_PERMIT_FEE, COLL_BUY_FROM_NPC, MKT_TRANSACTION_LEVY, LIFE_PURCHASE, LIFE_UPKEEP, TAX_* (12), MKT_TRADE, MKT_EXCHANGE_FEE, MKT_BLOCK_TRADE, BIZ_UPGRADE_CAPEX_B2B, BIZ_SALE_P2P, PROP_SALE_P2P, PROP_DEVELOPMENT_CAPEX_B2B, PROP_LAND_AUCTION.
+**The `derived` column (74 rows) is a PROVENANCE MARKER, not a membership flag** (E-81 point 1). It names the erratum or ruling the row came from. A derived row is a **full member** of the catalog: postable, classed, counted. The generator emits `derived: true, derivedFrom: '<erratum>'`. `derived` never filters anything.
 
-`aliases.csv`: all 26 24 §8 alias rows (T03-05:92-117) plus the 2 PD-12 aliases = 28.
+**The generator's contract** (`packages/engine/ledger/scripts/gen-catalog.mjs`): it reads the canonical `catalog.csv` + `aliases.csv` + `legpolicy.csv` from `export/ledger-ref`, resolved from the script's own location so it runs from any checkout; it **refuses to emit** a seed that breaks the class→template rule (03 §3.3.3) or that carries a malformed leg value; and it is **idempotent** — regenerating from the canonical inputs reproduces the committed files byte for byte.
+
+`restrictedOk = Y`: 44 codes in the current catalog. The E-21 change (`ACCT_LICENSE_FEE` → N) and the E-22 14B life rows are applied.
+
+`aliases.csv`: 56 rows — the 26 24 §8 alias rows, the 2 PD-12 aliases, and the later registrations (E-26, E-29, E-38, E-39, E-44, E-50).
 
 ## legpolicy.csv (E-11, 2026-10-21 00:30 CEST)
-Generated by `gen_legpolicy.py` (run: `python3 gen_legpolicy.py > gen_legpolicy.out`). 392 rows, one per code: legA and legB each with default, policy, allowed set and source, plus `negative_swap` and `ambiguous` columns.
+Generated by `gen_legpolicy.py` (run: `python3 gen_legpolicy.py > gen_legpolicy.out`). 456 rows, one per code: legA and legB each with default, policy, allowed set and source, plus `negative_swap` and `ambiguous` columns. **The catalog's `legA`/`legB` columns are the DEFAULT leg (one account); an allowed SET (`5200|5050`) lives here, in the `legA_allowed` column with policy `CLASS`** — E-29 for `CITY_COSMETIC`/`CITY_NAMING_RIGHT`/`CITY_SPONSORSHIP`, whose catalog default is `5200`.

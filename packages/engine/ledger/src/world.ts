@@ -1,6 +1,6 @@
 // Ledger runtime for one world (T03-08/T03-09/T03-11/T03-12 subset): queue, holds, P13 commit, aggregates, FlowReader.
 // All state lives on the instance (Δ11 spirit); nothing is process-global.
-import { accountKey, cbkId, defaultMoneyCode, kindOfId, parseAccountKey, RESTRICTED_PREFIX, SYS_ID } from './accounts';
+import { accountKey, cbkId, chartEntry, classOfCode, defaultMoneyCode, isMoneyCode, kindOfId, parseAccountKey, RESTRICTED_PREFIX, SYS_ID } from './accounts';
 import { FLOW_CLASSES, RESTRICTED_OK_CODES, type FlowClass, ReasonCatalog } from './catalog';
 import { canonEncode, SortedMap } from './det';
 import {
@@ -8,16 +8,247 @@ import {
   type Accounts, type Bal, type CheckView, type Failure, type TickFlows,
 } from './invariants';
 import { CCYS, mulRate, toMoney, type Ccy, type Id, type Money, type Qty, type Tick } from './money';
-import { DEFAULT_PARAMS, IntentEnvelope, rootOwnerOf, type Params } from './stubs';
+import { DEFAULT_PARAMS, IntentEnvelope, rootOwnerOfEntity, type Params } from './stubs';
 import * as T from './templates';
 import { classify, controlChanges, foldHoldings, sideOf, sumMap, type HolderClass, type SideTag } from './sysside';
 import { addTick, archiveHash, emptyArchive, INV_LED_017, INV_LED_018, SYS_INVARIANTS, type FlowDayArchive } from './sysinv';
 import { RECEIVABLE, SETTLEMENT_CODES, SETTLEMENT_PAYABLE, type AccrualKind } from './legpolicy';
 import { cmpStr } from './det';
-import type { AccrualRow, ConflictEscrow, Entry, EntityKind, Hold, LedgerEntity, PayAccountChoice, Perimeter, PhaseId, Reject } from './types';
+import type {
+  Account, AccrualRow, ConflictEscrow, EntityStatus, Entry, EntityKind, Hold, Jurisdiction, LedgerEntity, LedgerFact,
+  LedgerFactKind, PayAccountChoice, Perimeter, PhaseId, Reject,
+} from './types';
 
 export const TICKS_PER_DAY = 720;
-export interface RegisterEntitySpec { id: Id; reportingCcy?: Ccy; ownerId?: Id | null; payFrom?: PayAccountChoice; receiveInto?: PayAccountChoice }
+/** T03-08 step 2: the entity registry's spec. `kind` is derived from the id when not given. */
+export interface RegisterEntitySpec {
+  id: Id; kind?: EntityKind; reportingCcy?: Ccy; ownerId?: Id | null; homeCity?: string; homeBloc?: Jurisdiction;
+  nameKey?: string; partitionId?: string; payFrom?: PayAccountChoice; receiveInto?: PayAccountChoice;
+}
+/** T03-08: the runtime handle the ledger API and the holds run against. */
+export interface LedgerRuntime {
+  /** The 03-scoped writer for the current tick (T03-09 binds the PartitionStore; here it is the world's own writer). */
+  own: RuntimeWrite;
+  /** Committed state plus this tick's 03 writes. */
+  read: RuntimeRead;
+  tick: Tick; partitionId: string; safeMode: boolean;
+  queue: TickQueue;
+  catalog: ReasonCatalog;
+}
+/**
+ * The read side of a runtime. It is a STRUCTURAL subset of core's `StoreRead` (T02-09), so T03-09 can hand its real
+ * PartitionStore to the same functions unchanged; the ledger imports no core type here, keeping the edge type-only (E-80.4).
+ */
+export interface RuntimeRead {
+  get<T>(table: string, id: string): T | undefined;
+  iter<T>(table: string): Iterable<T>;
+  count(table: string): number;
+}
+/** The write side: the tables 03 owns. T03-09's `store.bind({ module: '03', phase })` satisfies it. */
+export interface RuntimeWrite {
+  put<T>(table: string, entity: T): void;
+  del(table: string, id: string): void;
+}
+/** The symbol the runtime is installed under on the LedgerApi object (T03-08 step 1). */
+export const RUNTIME: unique symbol = Symbol('avalon.ledger.runtime');
+/** The per-tick entry queue (T03-08 step 8). Insertion order is kept: phases run in a fixed order. */
+export class TickQueue {
+  private readonly items: Entry[] = [];
+  readonly tick: Tick;
+  constructor(tick: Tick) { this.tick = tick; }
+  push(e: Entry): void { this.items.push(e); }
+  entries(): readonly Entry[] { return this.items; }
+  clear(): void { this.items.length = 0; }
+  /**
+   * Σ debits that reduce this money account from entries without a holdId (or beyond their hold). A posting that
+   * CREDITS the account (the account pays) reduces it; a posting that DEBITS it (the account receives) does not.
+   */
+  queuedDebit(accountKey: string): Money {
+    let s = 0n;
+    for (const e of this.items) if (!e.holdId) for (const p of e.postings) if (p.creditAccount === accountKey) s += p.amount;
+    return s;
+  }
+}
+/** T03-08 step 6: the facts table. `id` is `${kind}:${subjectId}`; the last write in a tick wins. */
+export const factId = (kind: LedgerFactKind, subjectId: Id): string => `${kind}:${subjectId}`;
+/** T03-08 step 7: push a fact. Any module may push; the ledger stores it on `led.fact`. */
+export function putFact(rt: LedgerRuntime, kind: LedgerFactKind, subjectId: Id, value: unknown): void {
+  rt.own.put('led.fact', { id: factId(kind, subjectId), kind, subjectId, value, tick: rt.tick } satisfies LedgerFact);
+}
+/** T03-08 step 7: the fact of a kind for a subject, or undefined. */
+export function getFact<T>(rt: LedgerRuntime, kind: LedgerFactKind, subjectId: Id): T | undefined {
+  return rt.read.get<LedgerFact>('led.fact', factId(kind, subjectId))?.value as T | undefined;
+}
+/** T03-08 step 7: every fact of a kind, in id order. */
+export function factsOfKind(rt: LedgerRuntime, kind: LedgerFactKind): readonly LedgerFact[] {
+  const out: LedgerFact[] = [];
+  for (const f of rt.read.iter<LedgerFact>('led.fact')) if (f.kind === kind) out.push(f);
+  return out.sort((a, b) => cmpStr(a.id, b.id));
+}
+
+/** T03-08 step 3: the account row of a key, or undefined. */
+export function getAccount(rt: LedgerRuntime, key: string): Account | undefined {
+  return rt.read.get<Account>('led.account', key);
+}
+/**
+ * T03-08 step 3: lazily open an account (03 §3.1.2). The class comes from the chart; `isMoney` from the code and the
+ * entity's kind; a qty-bearing code carries `assetId` = its sub. An unknown chart code is a hard error: the caller
+ * (T03-09) reports it through `ctx.fail('INV-LED-007', …)`.
+ */
+export function ensureAccount(rt: LedgerRuntime, key: string): Account {
+  const existing = getAccount(rt, key);
+  if (existing) return existing;
+  const q = parseAccountKey(key);
+  if (!q) throw new Error(`ensureAccount: malformed account key '${key}'`);
+  const entry = chartEntry(q.code);
+  if (!entry) throw new Error(`ensureAccount: code ${q.code} is not in the chart of accounts`);
+  const kind = kindOfId(q.entityId);
+  const isQty = entry.qtyBearing;
+  const row: Account = {
+    key, entityId: q.entityId, code: q.code, ...(q.sub !== undefined ? { sub: q.sub } : {}), ccy: q.ccy,
+    class: classOfCode(q.code) as Account['class'], balance: 0n, ...(isQty ? { qty: 0n } : {}),
+    ...(isQty && q.sub !== undefined ? { assetId: q.sub } : {}),
+    isMoney: isMoneyCode(q.code, kind), openedTick: rt.tick,
+  };
+  rt.own.put('led.account', row);
+  return row;
+}
+/** T03-08 step 3: the committed balance of a key (0n when absent). */
+export function committedBalance(rt: LedgerRuntime, key: string): Money { return getAccount(rt, key)?.balance ?? 0n; }
+/** T03-08 step 3: the committed quantity of a key (0n when absent). */
+export function committedQty(rt: LedgerRuntime, key: string): Qty { return getAccount(rt, key)?.qty ?? 0n; }
+/** T03-08 step 3: every account of an entity, sorted by key. */
+export function accountsOfEntity(rt: LedgerRuntime, entityId: Id): readonly Account[] {
+  const out: Account[] = [];
+  for (const a of rt.read.iter<Account>('led.account')) if (a.entityId === entityId) out.push(a);
+  return out.sort((x, y) => cmpStr(x.key, y.key));
+}
+/** T03-08 step 3: every account holding an asset, sorted by key. */
+export function accountsOfAsset(rt: LedgerRuntime, assetId: Id): readonly Account[] {
+  const out: Account[] = [];
+  for (const a of rt.read.iter<Account>('led.account')) if (a.assetId === assetId) out.push(a);
+  return out.sort((x, y) => cmpStr(x.key, y.key));
+}
+
+/** T03-08 step 9: the account is remote when its entity lives on another partition; a remote balance is never known locally. */
+export function isRemoteAccount(rt: LedgerRuntime, key: string): boolean {
+  const q = parseAccountKey(key);
+  if (!q) return false;
+  const e = getEntity(rt, q.entityId);
+  return !!e && e.partitionId !== undefined && e.partitionId !== rt.partitionId;
+}
+
+/** T03-08: the entity row of an id, or undefined. */
+export function getEntity(rt: LedgerRuntime, id: Id): LedgerEntity | undefined {
+  return rt.read.get<LedgerEntity>('led.entity', id);
+}
+/** T03-08 step 2: 03 §3.5.1 — sys -> SYSTEM; hh/frm/row -> ELASTIC; root chr/ali -> PLAYER; else NPC. */
+export function perimeterFor(rt: LedgerRuntime, e: LedgerEntity): Perimeter {
+  const k = kindOfId(e.id);
+  if (k === 'sys') return 'SYSTEM';
+  if (k === 'hh' || k === 'frm' || k === 'row') return 'ELASTIC';
+  const root = kindOfId(rootOwnerOf(rt, e.id));
+  return root === 'chr' || root === 'ali' ? 'PLAYER' : 'NPC';
+}
+/** T03-08 step 2: follows ownerId to the end (cycle -> stops at the repeat, reported by INV-BS-004). */
+export function rootOwnerOf(rt: LedgerRuntime, id: Id): Id {
+  return rootOwnerOfEntity((x) => getEntity(rt, x), id);
+}
+/** T03-08: set an entity's status (03 insolvency, 13 freeze, 02 ENGINE_REVIEW). */
+export function setEntityStatus(rt: LedgerRuntime, id: Id, status: EntityStatus): void {
+  const e = getEntity(rt, id);
+  if (!e) throw new Error(`setEntityStatus: unknown entity '${id}'`);
+  rt.own.put('led.entity', { ...e, status });
+}
+
+/** T03-08 step 4: Σ remaining of the ACTIVE holds' parts on an account. */
+export function activeHoldOn(rt: LedgerRuntime, accountKey: string): bigint {
+  let s = 0n;
+  for (const h of rt.read.iter<Hold>('led.hold')) {
+    if (h.status !== 'ACTIVE') continue;
+    for (const p of h.parts) if (p.accountKey === accountKey) s += p.remaining;
+  }
+  return s;
+}
+/** T03-08 step 4: the owner's ACTIVE holds, in id order (E-79 point 4). */
+export function activeHolds(rt: LedgerRuntime, owner: Id): readonly Hold[] {
+  const out: Hold[] = [];
+  for (const h of rt.read.iter<Hold>('led.hold')) if (h.status === 'ACTIVE' && h.owner === owner) out.push(h);
+  return out.sort((a, b) => cmpStr(a.holdId, b.holdId));
+}
+/**
+ * T03-08 step 6: every ACTIVE hold whose expiry is before the tick becomes RELEASED (02 §3.14.3 rule 3).
+ * The hold table passed in is the STAGED one (P13 stages the expiry before it commits); the returned ids are the
+ * holds that expired in this tick.
+ */
+export function expireHolds(holds: SortedMap<Id, Hold>, tick: Tick): Id[] {
+  const expired: Id[] = [];
+  for (const h of holds.values()) {
+    if (h.status !== 'ACTIVE' || h.expiresTick >= tick) continue;
+    h.status = 'RELEASED'; h.remaining = 0n;
+    for (const p of h.parts) p.remaining = 0n;
+    expired.push(h.holdId);
+  }
+  return expired.sort(cmpStr);
+}
+/**
+ * T03-08 step 5: the amounts an entry consumed from a hold's parts. A cash hold's parts are reduced by the amount
+ * credited to each part account; a qty hold is reduced by the quantity moved. The hold stays ACTIVE while it has
+ * remaining (a resting order may fill again); `remaining` reaching 0n sets the status SETTLED.
+ */
+export function consumeHold(h: Hold | undefined, e: Entry): void {
+  if (!h || h.status !== 'ACTIVE') return;
+  for (const p of e.postings) {
+    if (h.kind === 'CASH') {
+      for (const part of h.parts) if (part.accountKey === p.creditAccount && part.remaining > 0n) {
+        const t = part.remaining < p.amount ? part.remaining : p.amount; part.remaining -= t; h.remaining -= t;
+      }
+    } else if (h.assetId !== undefined && p.assetId === h.assetId && p.qty !== undefined && p.qty > 0n) {
+      const t = h.remaining < p.qty ? h.remaining : p.qty; h.remaining -= t;
+    }
+  }
+  if (h.remaining <= 0n) { h.remaining = 0n; h.status = 'SETTLED'; }
+}
+
+/** T03-08: the rail state over a runtime. The templates read the world through it (T03-06). */
+export function railStateFor(rt: LedgerRuntime): T.RailState {
+  return {
+    tick: rt.tick,
+    entity: (id) => getEntity(rt, id),
+    spendable: (key) => spendable(rt, key),
+    restrictedLots: (e, c) => restrictedLotsOf(rt, e, c),
+    bookValueOf: (key, qty) => T.bookValue(committedBalance(rt, key), committedQty(rt, key), qty),
+    balance: (key) => committedBalance(rt, key),
+    depositAccounts: (e, c) => depositAccounts(rt, e, c),
+    bankFrozen: (bankId) => getFact<boolean>(rt, 'BANK_FROZEN', bankId) === true,
+  };
+}
+/** T03-08: committed balance − active holds on it − this tick's queued debits on it. */
+export function spendable(rt: LedgerRuntime, accountKey: string): Money {
+  return committedBalance(rt, accountKey) - activeHoldOn(rt, accountKey) - rt.queue.queuedDebit(accountKey);
+}
+/** T03-08: the 1001 RESTRICTED:* lots of an entity, FIFO by (releaseTick, key). */
+export function restrictedLotsOf(rt: LedgerRuntime, entityId: Id, ccy: Ccy): readonly { accountKey: string; releaseTick: Tick; balance: Money }[] {
+  const out: { accountKey: string; releaseTick: Tick; balance: Money }[] = [];
+  for (const a of accountsOfEntity(rt, entityId)) {
+    if (a.code !== 1001 || a.ccy !== ccy || !a.sub?.startsWith(RESTRICTED_PREFIX) || a.balance <= 0n) continue;
+    out.push({ accountKey: a.key, releaseTick: Number(a.sub.split(':')[1]), balance: a.balance });
+  }
+  return out.sort((a, b) => a.releaseTick - b.releaseTick || cmpStr(a.accountKey, b.accountKey));
+}
+/** E-79 point 5: the entity's 1010 deposit accounts, sorted by bank id then term sub (03 §3.2 code 1010). */
+export function depositAccounts(rt: LedgerRuntime, entityId: Id, ccy: Ccy): readonly string[] {
+  const out: { bankId: string; termSub: string; key: string }[] = [];
+  for (const a of accountsOfEntity(rt, entityId)) {
+    if (a.code !== 1010 || a.ccy !== ccy) continue;
+    // the key is <entity>:<code>[:<sub>]:<ccy>; the sub of a deposit is the bank id, optionally "<bankId>:<termId>"
+    const sub = a.sub ?? '';
+    const [bankId = '', termSub = ''] = sub.split(':');
+    out.push({ bankId, termSub, key: a.key });
+  }
+  return out.sort((a, b) => cmpStr(a.bankId, b.bankId) || cmpStr(a.termSub, b.termSub)).map((x) => x.key);
+}
+
 export interface FlowDay {
   id: string; ccy: Ccy; dayIndex: number; byClass: Record<FlowClass, string>; byCode: Record<string, string>;
   M0: string; M0_sys: string; M0_cb: string; M2: string; PEM: string; ownAccount: string;
@@ -67,7 +298,16 @@ export interface HoldApi {
     opts?: { crossPartition?: boolean }): Id | Reject;
   placeQty(owner: Id, assetId: Id, qty: Qty, expiresTick: Tick, ref: Id): Id | Reject;
   release(holdId: Id): void; reduce(holdId: Id, byAmount: bigint): void; get(holdId: Id): Hold | undefined;
+  /** E-79 point 4: the owner's ACTIVE holds, in id order. */
+  activeHolds(owner: Id): readonly Hold[];
 }
+/** T03-08: the hold API over a runtime. E-79 point 4 puts `activeHolds` on the canonical `HoldApi` itself. */
+export type HoldApiExt = HoldApi;
+/** The reject codes a hold placement can return (T03-08). */
+export const HOLD_REJECT = {
+  INSUFFICIENT_FUNDS: 'LED_INSUFFICIENT_FUNDS', INSUFFICIENT_QTY: 'LED_INSUFFICIENT_QTY',
+  ENTITY_FROZEN: 'LED_ENTITY_FROZEN', RESTRICTED_FUNDS: 'LED_RESTRICTED_FUNDS', BAD_EXPIRY: 'LED_BAD_EXPIRY',
+} as const satisfies Record<string, Reject['code']>;
 /** Template builders bound to an env; used by compose(). */
 export interface Builders { env: T.TemplateEnv; t: typeof T }
 export interface ScheduledProcess { name: string; module: string; run(tick: Tick): { subject: Id; post(api: LedgerApi): void }[] }
@@ -97,6 +337,7 @@ interface State {
    *  accounts() and snapshot() report the union, so nothing observable changes. A zero account contributes nothing to any scan. */
   dormant: Accounts;
   facts: SortedMap<string, Money>;                // `OVERDRAFT_LIMIT:<key>` | `INTRADAY_CREDIT_LIMIT:<bankId>`
+  factRows: SortedMap<string, LedgerFact>;        // led.fact: the facts table (T03-08 step 7); id `${kind}:${subjectId}`
   log: Entry[];                                   // committed entry log (valid and invalid), the postings archive
   day: Entry[];                                   // this game day's committed valid entries (I18)
   tickFlows: SortedMap<string, TickFlows>;        // ring, id `${ccy}:${tick}`
@@ -124,6 +365,8 @@ export class LedgerWorld {
   readonly catalog: ReasonCatalog;
   readonly params: Params;
   readonly intents = new IntentEnvelope();
+  /** The partition this world's state lives in (T03-08 step 9: cross-partition legs). */
+  readonly partitionId: string;
   private s: State;
   private queue: Entry[] = [];
   private processes: ScheduledProcess[] = [];
@@ -131,13 +374,14 @@ export class LedgerWorld {
   /** Test instrumentation for spec test 2 (Δ2 cost): counts reads of the postings archive. */
   archiveReads = 0;
 
-  constructor(opts: { catalog?: ReasonCatalog; params?: Partial<Params>; tick?: Tick } = {}) {
+  constructor(opts: { catalog?: ReasonCatalog; params?: Partial<Params>; tick?: Tick; partitionId?: string } = {}) {
     this.catalog = opts.catalog ?? new ReasonCatalog();
     this.params = { ...DEFAULT_PARAMS, ...opts.params };
+    this.partitionId = opts.partitionId ?? 'p1';
     const t = opts.tick ?? 0;
     this.s = {
       tick: t, lastCommitted: t - 1, safeMode: false, idCounter: 0, entities: new SortedMap(), accounts: new SortedMap(), dormant: new SortedMap(), holds: new SortedMap(),
-      facts: new SortedMap(), log: [], day: [], tickFlows: new SortedMap(), today: new SortedMap(), flowDays: new SortedMap(), done: new SortedMap(), alerts: [],
+      facts: new SortedMap(), factRows: new SortedMap(), log: [], day: [], tickFlows: new SortedMap(), today: new SortedMap(), flowDays: new SortedMap(), done: new SortedMap(), alerts: [],
       sides: new SortedMap(), holdings: new SortedMap(), roles: new SortedMap(), dynasty: new SortedMap(), linkGroups: new SortedMap(), escrows: new SortedMap(),
       accruals: new SortedMap(), freshStart: new SortedMap(), garnish: new SortedMap(), archive: new SortedMap(), dayAcc: new SortedMap(),
       hookCursor: new SortedMap(CCYS.map((c) => [c, t - 1])), flips: [], m0PlayerOpen: new SortedMap(),
@@ -153,18 +397,110 @@ export class LedgerWorld {
   get safeMode(): boolean { return this.s.safeMode; }
   get alerts(): readonly Failure[] { return this.s.alerts; }
 
+  // ───────── the runtime's row access (T03-08) ─────────
+  /** The 03 tables, addressed by name. `own` writes them; `read` reads committed + staged rows. */
+  private rowId(entity: unknown): string {
+    const e = entity as { id?: string; key?: string; holdId?: string; entryId?: string };
+    return e.id ?? e.key ?? e.holdId ?? e.entryId ?? '';
+  }
+  private putRow(table: string, entity: unknown): void {
+    const id = this.rowId(entity);
+    switch (table) {
+      case 'led.entity': this.s.entities.set(id, entity as LedgerEntity); break;
+      case 'led.account': {
+        // INV-LED-009: opening an account never changes a balance. The row's balance is 0n until applyPosting
+        // writes it, so the balance map keeps the value it had and a write that would change it is refused.
+        const row = entity as Account;
+        const cur = this.s.accounts.get(id);
+        if (cur && (cur.balance !== row.balance || cur.qty !== (row.qty ?? 0n)))
+          throw new Error(`putRow: a balance change outside applyPosting (account ${id})`);
+        const bal: Bal = cur ?? { balance: 0n, qty: 0n };
+        this.s.accounts.set(id, bal);
+        break;
+      }
+      case 'led.hold': this.s.holds.set(id, entity as Hold); break;
+      case 'led.fact': this.s.factRows.set(id, entity as LedgerFact); break;
+      default: throw new Error(`putRow: unknown 03 table '${table}'`);
+    }
+  }
+  private delRow(table: string, id: string): void {
+    switch (table) {
+      case 'led.entity': this.s.entities.delete(id); break;
+      case 'led.account': this.s.accounts.delete(id); break;
+      case 'led.hold': this.s.holds.delete(id); break;
+      case 'led.fact': this.s.factRows.delete(id); break;
+      default: throw new Error(`delRow: unknown 03 table '${table}'`);
+    }
+  }
+  private getRow<T>(table: string, id: string): T | undefined {
+    switch (table) {
+      case 'led.entity': return this.s.entities.get(id) as T | undefined;
+      case 'led.account': { const b = this.s.accounts.get(id); return (b ? { balance: b.balance, qty: b.qty } : undefined) as T | undefined; }
+      case 'led.hold': return this.s.holds.get(id) as T | undefined;
+      case 'led.fact': return this.s.factRows.get(id) as T | undefined;
+      default: throw new Error(`getRow: unknown 03 table '${table}'`);
+    }
+  }
+  private iterRows<T>(table: string): Iterable<T> {
+    switch (table) {
+      case 'led.entity': return this.s.entities.values() as T[];
+      case 'led.account': return this.s.accounts.entries().map(([key, b]) => ({ key, balance: b.balance, qty: b.qty })) as T[];
+      case 'led.hold': return this.s.holds.values() as T[];
+      case 'led.fact': return this.s.factRows.values() as T[];
+      default: throw new Error(`iterRows: unknown 03 table '${table}'`);
+    }
+  }
+  private countRows(table: string): number {
+    switch (table) {
+      case 'led.entity': return this.s.entities.size;
+      case 'led.account': return this.s.accounts.size;
+      case 'led.hold': return this.s.holds.size;
+      case 'led.fact': return this.s.factRows.size;
+      default: throw new Error(`countRows: unknown 03 table '${table}'`);
+    }
+  }
+  /** The tick's entry queue as a TickQueue (T03-08 step 8). */
+  private tickQueue(): TickQueue {
+    const q = new TickQueue(this.s.tick);
+    for (const e of this.queue) q.push(e);
+    return q;
+  }
+  /** T03-08 step 7: the facts table. `id` is `${kind}:${subjectId}`; the last write in a tick wins. */
+  putFact(kind: LedgerFactKind, subjectId: Id, value: unknown): void {
+    this.s.factRows.set(factId(kind, subjectId), { id: factId(kind, subjectId), kind, subjectId, value, tick: this.s.tick });
+  }
+  /** T03-08 step 7: the fact of a kind for a subject, or undefined. */
+  getFact<T>(kind: LedgerFactKind, subjectId: Id): T | undefined {
+    return this.s.factRows.get(factId(kind, subjectId))?.value as T | undefined;
+  }
+  /** T03-08 step 7: every fact of a kind, in id order. */
+  factsOfKind(kind: LedgerFactKind): readonly LedgerFact[] {
+    return this.s.factRows.values().filter((f) => f.kind === kind).sort((a, b) => cmpStr(a.id, b.id));
+  }
+
   // ───────── entities & facts ─────────
   /** Idempotent (T03-08 :99). */
   registerEntity(spec: RegisterEntitySpec): Id {
     if (this.s.entities.has(spec.id)) return spec.id;
     if (spec.id.length > ENTITY_ID_MAX) throw new Error(`registerEntity: id longer than ${ENTITY_ID_MAX} chars`);
     if (!ENTITY_ID_RE.test(spec.id)) throw new Error(`registerEntity: invalid id '${spec.id}' (must match ${ENTITY_ID_RE.source})`);
-    const kind = kindOfId(spec.id);
+    const kind = spec.kind ?? kindOfId(spec.id);
     if (!kind) throw new Error(`registerEntity: unknown kind for ${spec.id}`);
-    this.s.entities.set(spec.id, {
-      id: spec.id, kind, ownerId: spec.ownerId ?? null, reportingCcy: spec.reportingCcy ?? 'FDL',
+    // 03 §2.1: a character always reports in FDL; every other kind reports in its own bloc's currency.
+    const reportingCcy = kind === 'chr' ? 'FDL' : spec.reportingCcy ?? 'FDL';
+    const e: LedgerEntity = {
+      id: spec.id, kind, ownerId: spec.ownerId ?? null, reportingCcy,
       payFrom: spec.payFrom ?? { kind: 'CASH' }, receiveInto: spec.receiveInto ?? { kind: 'CASH' },
-    });
+      nameKey: spec.nameKey ?? `entity.${spec.id}`,
+      partitionId: spec.partitionId,
+      createdTick: this.s.tick,
+      status: 'ACTIVE',
+      ...(spec.homeCity !== undefined ? { homeCity: spec.homeCity } : {}),
+      ...(spec.homeBloc !== undefined ? { homeBloc: spec.homeBloc } : {}),
+    };
+    // The row goes in first: the ownership walk and the perimeter both read the entity map (T03-08 step 2).
+    this.s.entities.set(spec.id, e);
+    this.s.entities.set(spec.id, { ...e, rootOwnerId: this.rootOwnerOf(spec.id), perimeter: this.perimeterOf(spec.id) });
     const side = sideOf(this.sideInputs(), spec.id); if (side) this.s.sides.set(spec.id, side); // in force from now; later changes at P13 (Δ10)
     return spec.id;
   }
@@ -201,16 +537,28 @@ export class LedgerWorld {
     const e = this.s.entities.get(id); if (!e) throw new Error(`setRail: ${id}`);
     this.s.entities.set(id, { ...e, ...rail });
   }
-  setOverdraftLimit(key: string, limit: Money): void { this.s.facts.set(`OVERDRAFT_LIMIT:${key}`, limit); }
-  setIntradayLimit(bankId: Id, limit: Money): void { this.s.facts.set(`INTRADAY_CREDIT_LIMIT:${bankId}`, limit); }
+  setOverdraftLimit(key: string, limit: Money): void { this.s.facts.set(`OVERDRAFT_LIMIT:${key}`, limit); this.putFact('OVERDRAFT_LIMIT', key, limit); }
+  setIntradayLimit(bankId: Id, limit: Money): void { this.s.facts.set(`INTRADAY_CREDIT_LIMIT:${bankId}`, limit); this.putFact('INTRADAY_CREDIT_LIMIT', bankId, limit); }
+  /** 03 §8 edge 2: a failed bank's deposits are frozen from N+1 (07 pushes the fact). */
+  setBankFrozen(bankId: Id, frozen: boolean): void { this.putFact('BANK_FROZEN', bankId, frozen); }
+  /** 13: a court freeze on an entity (the court pushes the fact; 03 reads it when a hold is placed). */
+  setCourtFreeze(entityId: Id, frozen: boolean): void { this.putFact('COURT_FREEZE', entityId, frozen); }
   /** 03 §3.5.1: sys -> SYSTEM; hh/frm/row -> ELASTIC; root chr/ali -> PLAYER; else NPC. TODO(T03-16): ownership graph. */
   perimeterOf = (id: Id): Perimeter => {
     const k = kindOfId(id);
     if (k === 'sys') return 'SYSTEM';
     if (k === 'hh' || k === 'frm' || k === 'row') return 'ELASTIC';
-    const root = kindOfId(rootOwnerOf(this.entity, id));
+    const root = kindOfId(rootOwnerOfEntity(this.entity, id));
     return root === 'chr' || root === 'ali' ? 'PLAYER' : 'NPC';
   };
+  /** T03-08 step 2: follows ownerId to the end (cycle -> stops at the repeat, reported by INV-BS-004). */
+  rootOwnerOf(id: Id): Id { return rootOwnerOfEntity(this.entity, id); }
+  /** T03-08: set an entity's status (03 insolvency, 13 freeze, 02 ENGINE_REVIEW). */
+  setEntityStatus(id: Id, status: EntityStatus): void {
+    const e = this.entity(id);
+    if (!e) throw new Error(`setEntityStatus: unknown entity '${id}'`);
+    this.s.entities.set(id, { ...e, status });
+  }
   registerProcess(p: ScheduledProcess): void { this.processes.push(p); }
 
   // ───────── reads (committed state only) ─────────
@@ -286,7 +634,42 @@ export class LedgerWorld {
     return {
       tick: this.s.tick, entity: this.entity, spendable: this.spendable, restrictedLots: (e, c) => this.lots(e, c),
       bookValueOf: (key, qty) => T.bookValue(this.balance(key), this.qtyOf(key), qty), balance: (key) => this.balance(key),
+      // E-79 point 5: the two members T03-06's RailState carries and the tree did not have.
+      depositAccounts: (e, c) => this.depositAccounts(e, c),
+      bankFrozen: (bankId) => this.getFact<boolean>('BANK_FROZEN', bankId) === true,
     };
+  }
+  /** E-79 point 5: the entity's 1010 deposit accounts, sorted by bank id then term sub. */
+  depositAccounts(entityId: Id, ccy: Ccy): readonly string[] {
+    const out: { bankId: string; termSub: string; key: string }[] = [];
+    for (const [k] of this.s.accounts) {
+      const q = parseAccountKey(k);
+      if (!q || q.entityId !== entityId || q.code !== 1010 || q.ccy !== ccy) continue;
+      const [bankId = '', termSub = ''] = (q.sub ?? '').split(':');
+      out.push({ bankId, termSub, key: k });
+    }
+    return out.sort((a, b) => cmpStr(a.bankId, b.bankId) || cmpStr(a.termSub, b.termSub)).map((x) => x.key);
+  }
+  /**
+   * T03-08: the runtime handle over this world's state. `own` and `read` are the world's own writer and reader;
+   * T03-09 replaces them with the PartitionStore binding (`store.bind({ module: '03', phase })` and the store itself),
+   * which satisfies the same structural interfaces.
+   */
+  runtime(): LedgerRuntime {
+    const rt: LedgerRuntime = {
+      own: {
+        put: <T,>(table: string, entity: T): void => { this.putRow(table, entity); },
+        del: (table: string, id: string): void => { this.delRow(table, id); },
+      },
+      read: {
+        get: <T,>(table: string, id: string): T | undefined => this.getRow<T>(table, id),
+        iter: <T,>(table: string): Iterable<T> => this.iterRows<T>(table),
+        count: (table: string): number => this.countRows(table),
+      },
+      tick: this.s.tick, partitionId: this.partitionId, safeMode: this.s.safeMode,
+      queue: this.tickQueue(), catalog: this.catalog,
+    };
+    return rt;
   }
   env(module: string, phase: PhaseId, intentId?: Id): T.TemplateEnv {
     return {
@@ -380,9 +763,15 @@ export class LedgerWorld {
       placeCashFor: (o, c, a, x, r, p, o2) => this.placeCash(o, c, a, x, r, p, o2?.crossPartition === true),
       placeQty: (o, as, qt, x, r) => {
         if (x < this.s.tick) return { code: 'LED_BAD_EXPIRY' };
-        if (!this.entity(o)) return { code: 'LED_UNKNOWN_ENTITY' };
+        const e = this.entity(o);
+        if (!e) return { code: 'LED_UNKNOWN_ENTITY' };
+        if (this.ownerFrozen(o)) return { code: 'LED_ENTITY_FROZEN' };
         if (qt <= 0n || this.availableQty(o, as) < qt) return { code: 'LED_INSUFFICIENT_QTY' };
-        return this.newHold({ owner: o, kind: 'QTY', assetId: as, amount: qt, parts: [], expiresTick: x, ref: r, crossPartition: false });
+        // T03-08 step 4: the part names the account the quantity is pledged on, so INV-BS-011's I12 can be computed.
+        const acct = this.accountsOf(o).find((a) => a.assetId === as && a.qty !== undefined);
+        if (!acct) return { code: 'LED_INSUFFICIENT_QTY' };
+        return this.newHold({ owner: o, kind: 'QTY', assetId: as, amount: qt,
+          parts: [{ accountKey: acct.key, amount: qt, remaining: qt }], expiresTick: x, ref: r, crossPartition: false });
       },
       release: (id) => { const h = this.s.holds.get(id); if (h && h.status === 'ACTIVE') h.status = 'RELEASED'; },
       reduce: (id, by) => {
@@ -392,8 +781,33 @@ export class LedgerWorld {
         if (h.remaining === 0n) h.status = 'RELEASED';
       },
       get: (id) => { const h = this.s.holds.get(id); return h ? structuredClone(h) : undefined; },
+      activeHolds: (o) => this.activeHoldsOf(o),
     };
     return { ledger, holds };
+  }
+  /** T03-08 step 4: the owner's ACTIVE holds, in id order (E-79 point 4). */
+  activeHoldsOf(owner: Id): readonly Hold[] {
+    return this.s.holds.values().filter((h) => h.status === 'ACTIVE' && h.owner === owner).sort((a, b) => cmpStr(a.holdId, b.holdId));
+  }
+  /** T03-08 step 4: an entity is frozen when its status says so, or when the court froze it (the COURT_FREEZE fact). */
+  ownerFrozen(owner: Id): boolean {
+    const e = this.entity(owner);
+    if (!e) return false;
+    if (e.status === 'FROZEN' || e.status === 'IN_INSOLVENCY') return true;
+    return this.getFact<boolean>('COURT_FREEZE', owner) === true;
+  }
+  /** T03-08 step 3: the accounts of an entity, sorted by key. */
+  accountsOf(entityId: Id): readonly Account[] {
+    const out: Account[] = [];
+    for (const [k, b] of this.s.accounts) {
+      const q = parseAccountKey(k);
+      if (!q || q.entityId !== entityId) continue;
+      out.push({ key: k, entityId: q.entityId, code: q.code, ...(q.sub !== undefined ? { sub: q.sub } : {}), ccy: q.ccy,
+        class: classOfCode(q.code) as Account['class'], balance: b.balance, qty: b.qty,
+        ...(chartEntry(q.code)?.qtyBearing && q.sub !== undefined ? { assetId: q.sub } : {}),
+        isMoney: isMoneyCode(q.code, kindOfId(q.entityId)), openedTick: 0 });
+    }
+    return out.sort((a, b) => cmpStr(a.key, b.key));
   }
   private newHold(h: Omit<Hold, 'holdId' | 'remaining' | 'placedTick' | 'status'>): Id {
     const holdId = `hld_${String(++this.s.idCounter).padStart(26, '0')}`;
@@ -406,10 +820,15 @@ export class LedgerWorld {
     const e = this.entity(owner);
     if (!e) return { code: 'LED_UNKNOWN_ENTITY' };
     if (expiresTick < this.s.tick) return { code: 'LED_BAD_EXPIRY' };
+    // 03 §3.14.3: a court freeze and an insolvency freeze both block a hold.
+    if (this.ownerFrozen(owner)) return { code: 'LED_ENTITY_FROZEN' };
     if (typeof amt !== 'bigint' || amt <= 0n) return { code: 'LED_INSUFFICIENT_FUNDS' };
     const ok = purpose !== undefined && RESTRICTED_OK_CODES.includes(purpose);
     const lots = this.lots(owner, ccy).map((l) => ({ accountKey: l.accountKey, avail: this.spendable(l.accountKey) }));
     const main = { accountKey: this.payKey(e, ccy), avail: this.spendable(this.payKey(e, ccy)) };
+    // 03 §8 edge 2: a failed bank's deposits are frozen, so a hold on them is rejected (E-79 point 5).
+    const mainFrozen = e.payFrom.kind === 'BANK' && this.getFact<boolean>('BANK_FROZEN', e.payFrom.bankId) === true;
+    if (mainFrozen) return { code: 'LED_INSUFFICIENT_FUNDS' };
     const restrictedTotal = lots.reduce((s, l) => s + (l.avail > 0n ? l.avail : 0n), 0n);
     const sources = ok ? [...lots, main] : [main];
     const parts: Hold['parts'] = [];
@@ -456,9 +875,9 @@ export class LedgerWorld {
       if (q && Number((q.sub as string).split(':')[1]) <= tick)
         this.queue.push(T.reclassKeys(this.env('03', 'P13'), 'LED_RECLASS', k, accountKey(q.entityId, 1001, q.ccy), b.balance, q.ccy));
     }
-    // Expire holds (expiresTick < tick).
+    // Expire holds (expiresTick < tick). T03-08 step 6: the staged hold table is expired before the tick commits.
     const holds = new SortedMap<Id, Hold>(this.s.holds.entries().map(([k, h]) => [k, structuredClone(h)]));
-    for (const h of holds.values()) if (h.status === 'ACTIVE' && h.expiresTick < tick) h.status = 'RELEASED';
+    expireHolds(holds, tick);
     // INV-LED-012 first: a non-bigint value must not reach the bigint arithmetic below.
     const prov = INV_LED_012({ entries: this.queue.filter((e) => !e.invalid), post: new SortedMap() } as unknown as CheckView);
     if (prov.length > 0) {
@@ -473,7 +892,7 @@ export class LedgerWorld {
       if (e.invalid) { invalid.push(e); continue; }
       for (const p of e.postings) applyPosting(post, p);
       valid.push(e);
-      if (e.holdId) settleHold(holds.get(e.holdId), e);
+      if (e.holdId) consumeHold(holds.get(e.holdId), e);
     }
     // Registries staged with the entries (led.escrow, accruals, Fresh Start garnish): visible only if the tick commits.
     const escrows = new SortedMap<Id, ConflictEscrow>(this.s.escrows.entries().map(([k, e]) => [k, { ...e }]));
@@ -730,13 +1149,6 @@ export function foldBalances(entries: Iterable<Entry>): Accounts {
   const a: Accounts = new SortedMap();
   for (const e of entries) if (!e.invalid) for (const p of e.postings) applyPosting(a, p);
   return a;
-}
-function settleHold(h: Hold | undefined, e: Entry): void {
-  if (!h || h.status !== 'ACTIVE') return;
-  for (const p of e.postings) for (const part of h.parts) if (part.accountKey === p.creditAccount && part.remaining > 0n) {
-    const t = part.remaining < p.amount ? part.remaining : p.amount; part.remaining -= t; h.remaining -= t;
-  }
-  if (h.remaining <= 0n) { h.remaining = 0n; h.status = 'SETTLED'; }
 }
 function cloneState(s: State): State {
   const m = <K extends string, V>(x: SortedMap<K, V>): SortedMap<K, V> => new SortedMap(x.entries().map(([k, v]) => [k, structuredClone(v)]));
