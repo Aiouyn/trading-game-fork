@@ -278,5 +278,10 @@ if (selfFailures > 0 || controlFailures > 0) {
     if (f.verdict !== 'KILLED') survived++;
   }
   console.log(`\n=== mutants: ${killed} of ${MUTANTS.length} SURVIVED behaviour and were KILLED by the source scan; ${survived} not killed; ${bad} bad ===`);
+  // THE MEASUREMENT SUMMARY that scripts/engine-check.mjs reads (requireMeasurement): an exit 0 is only
+  // accepted when the harness also prints this line with at least one kill, because a refusal, a deleted
+  // body and a harness renamed out of the glob all exit 0 having measured nothing. Printed here, after
+  // every mutant is scored, in the same shape the ledger harness uses.
+  console.log(`=== mutants killed: ${killed}   mutants survived: ${survived}   not a clean kill: ${bad} ===`);
   if (bad !== 0) process.exitCode = 1;
 }
