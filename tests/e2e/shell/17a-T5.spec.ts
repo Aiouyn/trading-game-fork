@@ -23,7 +23,7 @@ const axe = async (page: Page, label: string) => {
 };
 const width = (page: Page, sel: string) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().width);
 
-test("T5-01 desktop pills: error 191, offline 282, Retry slot 70; Retry doesn't change the width", async ({ page, context }, info) => {
+test("T5-01 desktop pills: error 191, offline 280, Retry slot 70; Retry doesn't change the width", async ({ page, context }, info) => {
   desktopOnly(info.project.name);
   await boot(page, "/?load=fail");
   await expect(page.getByTestId("load-error")).toBeVisible();
@@ -40,7 +40,12 @@ test("T5-01 desktop pills: error 191, offline 282, Retry slot 70; Retry doesn't 
   await expect(page.getByTestId("load-retry")).toHaveText("Retry");
   await context.setOffline(true);
   await expect(page.getByTestId("offline-state")).toBeVisible();
-  expect(Math.abs((await width(page, ".load-state")) - 282)).toBeLessThanOrEqual(1);
+  // 280, not 282: the pill is content-sized and its Retry slot reserves the hidden pseudo-label "Retrying…".
+  // That label lays out with fallback metrics when the webfont has not been applied to it: forcing it to
+  // "Inter Fallback" makes this exact pill 282.859375 — the 282 in the committed baseline shot — while Inter
+  // gives 279.546875. Rebuilt on this machine, 7a4d907 (the commit that pinned 282) and 3c010fe both measure
+  // 279.546875, so 280 ± 1 is the pill's real width; 282 pinned a font-loading state, not a layout.
+  expect(Math.abs((await width(page, ".load-state")) - 280)).toBeLessThanOrEqual(1);
   await shot(page, "pill-offline");
   await axe(page, "pill-offline");
   await context.setOffline(false);
