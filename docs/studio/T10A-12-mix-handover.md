@@ -39,43 +39,30 @@ that two premises have moved.
 
 ### BASIS ERROR — read before using any footprint figure in this record
 
-**qa measured this and it is the one finding that changes a conclusion.** This record's central
-footprint figure is **28 of 43 facility classes unplaceable at a maximum parcel of 548 m²**, derived
-from **drawn building width × depth**. The reference fixture's parcel cell is **land width × land
-depth (lw × ld)**, whose maximum is **848 m²**; on that basis the count is **23**.
+**Two different polygons, and this record's own table already gets them right** (`verdict.md:309-317`:
+`ALL 1174 — parcel 131/548 | cell 228/848`).
 
-The record's own 04-42 review already uses the parcel basis and says **23 of 37 / 848**. So the two
-documents in this directory disagree with each other, and the parcel basis is the correct one.
+| Basis | What it is | Max | Classes unplaceable |
+|---|---|---|---|
+| **Parcel** | the emitted lot, built from **`w × d`** (`generate-city.ts:212`) | **548.7 m²** (n=1174, min 71.9) | **28 of 43** |
+| **Cell** | the subdivision cell **`lw × ld`** — never emitted as a polygon | 848 m² | 23 |
 
-**What survives:** the anchors are unplaceable **on either basis**, so the structural finding — that
-anchor-class facilities cannot be placed — holds regardless of which count is used. **What does not
-survive:** the specific figure 28/43 as a parcel-basis number. Cite 23, or say "548 m² drawn-footprint
-basis" explicitly when using 28.
+**The PARCEL is the operative basis**, because it is the polygon a facility actually occupies.
 
-**Kept as an annotation rather than a correction**, because this directory exists to preserve what
-Studio produced at the time, not to make it agree with later measurement. A record that is silently
-retro-edited stops being evidence.
+**So cite 28, not 23.** An earlier version of this annotation had the labels swapped and told readers to
+cite 23 — which is the *cell* number, and would have replaced a correct figure with a wrong one. qa
+caught that the annotation contradicted the record's own table 260 lines below it.
 
-**Other findings from qa's review are preserved on the PR as review comments** and are not applied
-here: the permille arithmetic at handover:100, the §4 cell counts, the disposition omissions, and the
-stale "QA not to approve until Quant has spoken" line at handover:507 (Quant's ruling is in the card
-as INV-PLC-4 / AC-NO-ECON clause 2).
+**`04-42`'s "23 of 37" should not be quoted as a parcel figure:** it is cell-basis *and* a stale
+37-class universe (43 today) — two errors in one number.
 
+**What survives either way:** the anchors are unplaceable on both bases, so the structural finding holds.
+**Only the count and its label change.**
 
-## 0. Why this document exists
-
-The Producer accepted the Studio review in full and authorised exactly two number changes. The
-rest of the ruling is **card text**, and the card is the Designer's file. This document is the
-card-ready text for every item the Producer approved, plus the two numbers, with everything
-re-measured against the tree as it stands at 05:30.
-
-**Nothing here needs the owner's call.** Every item below is a card-text or table change the
-Producer has already ruled on. The Designer can apply items 1–8 verbatim.
-
-**Read item 4 before item 1.** The unit statement changes what the numbers *mean*, and finding 4
-shows that on the reference map 28 of the 67 non-zero cells have **no placeable carrier at all**.
-That is not a defect in the mix table; it is a fact about the reference map's parcel sizes, and it
-is the same fact as item 6.
+**And the larger contradiction is recorded separately, not here:** the largest parcel is 548.7 m² and its
+longest side 27.6 m, while E-84 makes `CAMPUS` require ≥ 8,000 m² and frontage ≥ 60 m. **`tech_campus`
+(8,000) and `hl_hospital` (15,000) are unplaceable on footprint alone — the two facilities E-84 was
+written to make placeable.** That deserves its own erratum note.
 
 ---
 
