@@ -76,7 +76,7 @@ export interface Hold {
   purposeCode?: string;                                         // reason code that will consume it (restricted cash, T03-12)
   status: 'ACTIVE' | 'SETTLED' | 'RELEASED';
 }
-export interface Reject { code: 'LED_INSUFFICIENT_FUNDS' | 'LED_INSUFFICIENT_QTY' | 'LED_RESTRICTED_FUNDS' | 'LED_BAD_EXPIRY' | 'LED_UNKNOWN_ENTITY' }
+export interface Reject { code: 'LED_INSUFFICIENT_FUNDS' | 'LED_INSUFFICIENT_QTY' | 'LED_RESTRICTED_FUNDS' | 'LED_BAD_EXPIRY' | 'LED_UNKNOWN_ENTITY' | 'LED_ENTITY_FROZEN' }
 export function isReject(x: unknown): x is Reject {
   return typeof x === 'object' && x !== null && 'code' in x;
 }

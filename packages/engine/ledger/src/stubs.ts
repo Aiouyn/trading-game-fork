@@ -28,7 +28,7 @@ export class IntentEnvelope {
 }
 
 /** TODO(T03-16): ownership graph. Until then the ultimate controller is the end of the ownerId chain (cycle-safe). */
-export function rootOwnerOf(entity: (id: Id) => LedgerEntity | undefined, id: Id): Id {
+export function rootOwnerOfEntity(entity: (id: Id) => LedgerEntity | undefined, id: Id): Id {
   const visited: Record<string, true> = {};
   let cur = id;
   for (;;) {
