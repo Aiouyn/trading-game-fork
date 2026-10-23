@@ -101,7 +101,7 @@
 | 95 | [ ] | T05-07 | S2 | 05 | Price bands, volatility interruptions, single-asset halts, market-wide circuit breakers, futures limits | T05-01, T05-02, T05-05 | 18135 | 1000 |
 | 96 | [ ] | T05-08 | S2 | 05 | Model ADV, background volume and the intraday volume profile | T05-01, T05-02, T05-03, T04-?? | 16701 | 600 |
 | 97 | [ ] | T05-09 | S2 | 05 | Order types, time in force, flags, OCO and brackets, triggers, market-order protection, icebergs and modification | T05-01, T05-02, T05-07 | 18266 | 1100 |
-| 98 | [ ] | T05-10 | S2 | 05 | Fees, volume tiers, message fee, transaction levy and settlement postings | T05-01, T05-02, T03-02, T03-03, T03-08, T03-09, T03-24, T04-?? | 21768 | 1000 |
+| 98 | [ ] | T05-10 | S2 | 05 | Fees, volume tiers, message fee, transaction levy and settlement postings | T05-01, T05-02, T03-02, T03-03, T03-08, T03-09, T03-24, T03-??, T04-?? | 21963 | 1000 |
 | 99 | [ ] | T05-11 | S2 | 05 | Pre-trade validation (P1), position and market limits, auto-split, and the order intents | T05-01, T05-02, T05-07, T05-08, T05-09, T05-10, T14A-07, T13A-06, T03-08, T03-09 | 25595 | 1400 |
 | 100 | [ ] | T05-12 | S2 | 05 | FX books, autoFx legs, cross-currency orders, capital controls and multi-leg derivative packages | T05-01, T05-06, T05-10, T05-11, T04-?? | 17968 | 900 |
 | 101 | [ ] | T05-13 | S2 | 05 | Execution algorithms (TWAP, VWAP, POV, IS) and the algo intents | T05-01, T05-02, T05-07, T05-08, T05-11, T14A-07 | 17997 | 800 |
@@ -152,7 +152,7 @@
 | 146 | [ ] | T06C-06 | S2 | 06C | Stablecoins (fiat-reserve GUSD and EUNX, Vesta CDP with Dutch auctions and PSM, Mirage algorithmic MDOL/MSH) with caused status transitions | T06C-01, T06C-02, T06C-03, T06C-05, T06A-01, T06A-02, T06A-08, T05-20, T07A-?? | 21482 | 1300 |
 | 147 | [ ] | T06C-07 | S2 | 06C | Arc Bridge and Keystone wrappers (lock and mint, impairment, recovery ratio, pause), NPC venue arbitrage and NPC crypto actors (miners, stakers, LPs) | T06C-01, T06C-02, T06C-04, T06C-05, T06A-01, T06A-02, T05-01, T05-20, T04-?? | 24888 | 900 |
 | 148 | [ ] | T06C-08 | S2 | 06C | Player-launched tokens (built in full behind player_tokens_enabled = false) with eligibility, launch fee, locked liquidity, vesting, disclosure, review, surveillance and delisting | T06C-01, T06C-02, T06C-03, T06A-01, T06A-02, T14A-05, T14A-07, T14A-08, T13A-??, T03-09 | 20915 | 750 |
-| 149 | [ ] | T06C-09 | S2 | 06C | Unit 06C views (crypto wallet, DeFi hub), module assembly, whole-module posting audit and the 06 tick-cost benchmark | T06C-01, T06C-02, T06C-03, T06C-04, T06C-05, T06C-06, T06C-07, T06C-08, T06A-17, T06A-18, T06B-11, T05-23, T03-05, T03-08, T03-09 | 23333 | 1000 |
+| 149 | [ ] | T06C-09 | S2 | 06C | Unit 06C views (crypto wallet, DeFi hub), module assembly, whole-module posting audit and the 06 tick-cost benchmark | T06C-01, T06C-02, T06C-03, T06C-04, T06C-05, T06C-06, T06C-07, T06C-08, T06A-17, T06A-18, T06B-11, T05-23, T03-02, T03-08, T03-09 | 22888 | 1000 |
 | 150 | [ ] | T07A-01 | S2 | 07A | Banking schema, tables, ids, constants, upstream adapter, ports for later modules, 07A event and intent schemas | T03-01, T03-08, T03-16, T03-25, T04-01, T05-20, T06A-01, T06A-02, T06A-10, T14A-07, T14A-08, T13A-??, T22A-01 | 40687 | 1100 |
 | 151 | [ ] | T07A-02 | S2 | 07A | Collateral classes and haircuts, stress multipliers, the single pledge registry, title-transfer re-use links, INV-BS-006 and INV-BS-007 | T07A-01 | 17637 | 1000 |
 | 152 | [ ] | T07A-03 | S2 | 07A | Bank balance sheet, risk weights and RWA, CET1 and leverage, LCR and NSFR, reserve requirement, large exposures, insured split, daily P&L and status mapping, INV-BNK-001 | T07A-01, T07A-02 | 21779 | 1400 |
@@ -420,6 +420,7 @@
 - T05-03: unknown dependency T04-??
 - T05-04: unknown dependency T04-??
 - T05-08: unknown dependency T04-??
+- T05-10: unknown dependency T03-??
 - T05-10: unknown dependency T04-??
 - T05-12: unknown dependency T04-??
 - T05-14: unknown dependency T04-??
