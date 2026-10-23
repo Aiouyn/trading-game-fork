@@ -18,9 +18,9 @@
 | 12 | [ ] | T23-07 | S0 | 23 | Transcribe registry tables of owners 19, 20 and 21 (161 keys) | T23-01 | 17194 | 800 |
 | 13 | [ ] | T23-08 | S0 | 23 | Registry assembly, versioned parameter set file, completeness and alias checks, INV-STR-007 | T23-01, T23-02, T23-03, T23-04, T23-05, T23-06, T23-07, T19A-05 | 17589 | 1100 |
 | 14 | [ ] | T20A-01 | S0 | 20A | Invariant framework types, launch catalogue and registry | T19A-?? | 16365 | 900 |
-| 15 | [ ] | T20A-02 | S0 | 20A | Failure-ladder algorithms (bisection, quarantine tracker) and property-test presets | T20A-01, T23-?? | 14174 | 800 |
+| 15 | [ ] | T20A-02 | S0 | 20A | Failure-ladder algorithms (bisection, quarantine tracker) and property-test presets | T20A-01, T23-01 | 15792 | 800 |
 | 16 | [ ] | T20A-03 | S0 | 20A | Seed sets, seed derivation, regression-case and repro-bundle format | T20A-01, T20A-02, T19A-?? | 12634 | 850 |
-| 17 | [ ] | T20A-04 | S0 | 20A | Harness world spec, test-agent and run types, headless runner loop and run-file format | T20A-01, T20A-03, T19A-?? | 16291 | 900 |
+| 17 | [ ] | T20A-04 | S0 | 20A | Harness world spec, test-agent and run types, headless runner loop and run-file format | T20A-01, T20A-03, T19A-02 | 17469 | 900 |
 | 18 | [ ] | T20A-05 | S0 | 20A | Band, finding and gate framework (band evaluation, evidence grouping, waiver rules) | T20A-03, T20A-04 | 16626 | 1000 |
 | 19 | [ ] | T20A-06 | S0 | 20A | Static invariant checkers INV-STR-006, INV-STR-008, INV-STR-009 | T20A-01, T20A-05, T19A-?? | 13685 | 1000 |
 | 20 | [ ] | T02-01 | S0 | 02 | Core primitives - types, SortedMap/SortedSet, cmpStr, sortBy, sha256, hmac, fnv1a32, canon re-export, lint fixtures | T19A-02 | 11374 | 1100 |
@@ -30,10 +30,10 @@
 | 24 | [ ] | T02-05 | S0 | 02 | Clock and calendar - game date, boundaries, holidays per bloc, business-day functions, sessions per product family, date formats | T02-01, T02-04, T23-??, T22A-?? | 16247 | 1100 |
 | 25 | [ ] | T02-06 | S0 | 02 | RNG streams - xoshiro128**, epoch seeding, lazy entropy mixing, fixed-draw variates, stream registry and RNG ledger | T02-01, T02-02, T02-03, T20A-01 | 16569 | 1300 |
 | 26 | [ ] | T02-07 | S0 | 02 | Deterministic IDs, tick entropy, commit-reveal entropy buffer, epoch roots, Merkle roots, sandbox entropy | T02-01, T02-05, T02-06, T20A-01 | 16845 | 1100 |
-| 27 | [ ] | T02-08 | S0 | 02 | Intent sealing - envelope checks (replay, stale, rate limit), fair orderKey ordering with per-actor nonce runs, batch assembly | T02-01, T02-07, T23-??, T19A-?? | 13144 | 900 |
+| 27 | [ ] | T02-08 | S0 | 02 | Intent sealing - envelope checks (replay, stale, rate limit), fair orderKey ordering with per-actor nonce runs, batch assembly | T02-01, T02-07, T23-01, T19A-?? | 14761 | 900 |
 | 28 | [x] | T02-09 | S0 | 02 | Store - table registry, ownership, undo log, phase stamps, write set, entity hashes, logicalStateHash and partition stateHash | T02-01, T02-04, T20A-01 | 13724 | 1300 |
 | 29 | [ ] | T02-10 | S0 | 02 | Snapshot codec - canonical chunks, manifest, verified load with fallback, cadence and retention rules | T02-01, T02-05, T02-06, T02-09 | 13362 | 750 |
-| 30 | [x] | T02-11 | S0 | 02 | Module contract - PhaseCtx, ValidateCtx, IntentHandler, ViewHandler, ModuleDef/defineModule, module registry, LedgerProvider port | T02-01, T02-05, T02-06, T02-07, T02-08, T02-09, T20A-01, T23-??, T22A-01, T19A-?? | 20143 | 800 |
+| 30 | [x] | T02-11 | S0 | 02 | Module contract - PhaseCtx, ValidateCtx, IntentHandler, ViewHandler, ModuleDef/defineModule, module registry, LedgerProvider port | T02-01, T02-05, T02-06, T02-07, T02-08, T02-09, T20A-01, T23-01, T22A-01, T19A-?? | 21760 | 800 |
 | 31 | [ ] | T02-12 | S0 | 02 | Pipeline runner (single partition) - P0 to P14, intent dispatch, phase contexts, P13 prepare/commit/abort, event sequencing | T02-05, T02-06, T02-07, T02-08, T02-09, T02-11, T20A-01, T23-??, T22A-?? | 22084 | 1500 |
 | 32 | [ ] | T02-13 | S0 | 02 | Boundary hooks, consequences next tick, core event schemas, delta visibility filter | T02-05, T02-11, T02-12, T20A-01 | 17234 | 1000 |
 | 33 | [ ] | T02-14 | S0 | 02 | Partitions in-process - partition kinds and homes, rounds R0-R6 with barriers B1-B3, message routing, worldHash, partition-equivalence check | T02-01, T02-09, T02-11, T02-12, T02-13, T20A-01, T20A-04 | 22043 | 1500 |
@@ -410,9 +410,7 @@
 
 - T02-05: unknown dependency T23-??
 - T02-05: unknown dependency T22A-??
-- T02-08: unknown dependency T23-??
 - T02-08: unknown dependency T19A-??
-- T02-11: unknown dependency T23-??
 - T02-11: unknown dependency T19A-??
 - T02-12: unknown dependency T23-??
 - T02-12: unknown dependency T22A-??
@@ -578,9 +576,7 @@
 - T19D-09: unknown dependency T15B-??
 - T19D-09: unknown dependency T21-??
 - T20A-01: unknown dependency T19A-??
-- T20A-02: unknown dependency T23-??
 - T20A-03: unknown dependency T19A-??
-- T20A-04: unknown dependency T19A-??
 - T20A-06: unknown dependency T19A-??
 - T20B-01: unknown dependency T19B-??
 - T20B-02: unknown dependency T19B-??
