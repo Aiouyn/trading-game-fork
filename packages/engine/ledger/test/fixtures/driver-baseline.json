@@ -1,0 +1,15 @@
+{
+  "seed": 42,
+  "days": 30,
+  "ticks": 21600,
+  "loanIdPrefix": "lon_",
+  "components": {
+    "entryLog": "9293ecb2b5dad0d6d0ac7fb723074ee933b9a07c12ad0d8155a9d7e0a7375f86",
+    "perTickResults": "ec2499cf9434a77a8461298c3acafd6dbac3b35c582c7262708f937a92cb5e91",
+    "flows": "4b1aa3e386de3069da4e10a37a9c73f64b3ea2e7e2f344d543dd5c9fd343f627",
+    "flowDays": "a0513cdf2acfbd585590a6cc1e029c441d69befc1f35b318b4d3416c19db0c13",
+    "snapshot": "95d31790c43f3ad72effd3f0e92b7c079fd1977b8bfa74d85f8d60386692d38e",
+    "accounts": "37bf6867ca2d3d1c39467be75e370e69d5008313b7d1db2ee577c1ebb956af15",
+    "dailyAggregates": "e416897f04b5c7d8b18719aa5002c7f1b5dd8b761b940ab77092d39baff38d77"
+  }
+}
