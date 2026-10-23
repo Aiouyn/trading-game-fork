@@ -43,18 +43,24 @@ count than at another. Two of the eight rows are arithmetically unreachable at t
 
 ### BASIS ERROR — read before using any footprint figure in this record
 
-**qa measured this and it is the one finding that changes a conclusion.** This record's central
-footprint figure is **28 of 43 facility classes unplaceable at a maximum parcel of 548 m²**, derived
-from **drawn building width × depth**. The reference fixture's parcel cell is **land width × land
-depth (lw × ld)**, whose maximum is **848 m²**; on that basis the count is **23**.
+**Two different polygons, and this record's own table already gets them right.**
 
-The record's own 04-42 review already uses the parcel basis and says **23 of 37 / 848**. So the two
-documents in this directory disagree with each other, and the parcel basis is the correct one.
+| Basis | What it is | Max | Classes unplaceable |
+|---|---|---|---|
+| **Parcel** | the emitted lot, built from **`w × d`** (`generate-city.ts:212`) — n=1174, min 71.9 | **548.7 m²** | **28 of 43** |
+| Cell | the subdivision cell `lw × ld`, never emitted as a polygon | 848 m² | 23 |
 
-**What survives:** the anchors are unplaceable **on either basis**, so the structural finding — that
-anchor-class facilities cannot be placed — holds regardless of which count is used. **What does not
-survive:** the specific figure 28/43 as a parcel-basis number. Cite 23, or say "548 m² drawn-footprint
-basis" explicitly when using 28.
+**The PARCEL is the operative basis**, because it is the polygon a facility actually occupies.
+
+**So cite 28, not 23.** An earlier version of this annotation had the two labels swapped and told
+readers to cite 23 — the *cell* number — which would have replaced a correct figure with a wrong one.
+It also contradicted the record's own table (`ALL 1174 — parcel 131/548 | cell 228/848`), which had it
+right all along. Cite that table by its content, not by line number: line numbers in this file shift
+whenever an annotation is edited.
+
+**`04-42`'s "23 of 37" should not be quoted as a parcel figure:** it is cell-basis *and* a stale
+37-class universe (43 today) — two errors in one number.
+
 
 **Kept as an annotation rather than a correction**, because this directory exists to preserve what
 Studio produced at the time, not to make it agree with later measurement. A record that is silently
