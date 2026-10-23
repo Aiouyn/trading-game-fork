@@ -42,6 +42,12 @@ export const OWNED_CITYGEN: readonly string[] = [
   'packages/citygen/test/placement/buffers.test.ts',
   'packages/citygen/test/placement/suitability.test.ts',
   'packages/citygen/test/placement/assign.test.ts',
+  // The F-1/F-3 proof (fork PR #19): the parser scan, the committed mutant text it reads, and the
+  // kill harness that engine-check runs. Added when QA found the regex blind to the destructuring,
+  // bracket and computed-key spellings.
+  'packages/citygen/test/placement/role-column-scan.ts',
+  'packages/citygen/test/placement/role-copy-mutants.json',
+  'packages/citygen/scripts/mutants-t10a-12-role.mjs',
   // The two CI files that wire the package into the checks.
   'scripts/engine-check.mjs',
   '.github/workflows/engine.yml',

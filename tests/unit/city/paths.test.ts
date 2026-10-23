@@ -121,8 +121,8 @@ describe('C-16 negative-space probe: the OWNED_CONTENT grant must not leak', () 
 });
 
 describe('T10A-12: the OWNED_CITYGEN grant covers the package this card creates, and nothing else', () => {
-  // The 20 exact paths: the package skeleton (6, including the lockfile), the seven placement
-  // sources, the five placement tests, and the two CI files.
+  // The 23 exact paths: the package skeleton (6, including the lockfile), the seven placement
+  // sources, the five placement tests, the three F-1/F-3 proof files, and the two CI files.
   const NAMED: readonly string[] = [
     'packages/citygen/package.json',
     'packages/citygen/package-lock.json',
@@ -142,12 +142,15 @@ describe('T10A-12: the OWNED_CITYGEN grant covers the package this card creates,
     'packages/citygen/test/placement/buffers.test.ts',
     'packages/citygen/test/placement/suitability.test.ts',
     'packages/citygen/test/placement/assign.test.ts',
+    'packages/citygen/test/placement/role-column-scan.ts',
+    'packages/citygen/test/placement/role-copy-mutants.json',
+    'packages/citygen/scripts/mutants-t10a-12-role.mjs',
     'scripts/engine-check.mjs',
     '.github/workflows/engine.yml',
   ];
 
-  it('the grant is exactly the twenty named paths', () => {
-    expect(OWNED_CITYGEN).toHaveLength(20);
+  it('the grant is exactly the twenty-three named paths', () => {
+    expect(OWNED_CITYGEN).toHaveLength(23);
     for (const p of NAMED) expect(OWNED_CITYGEN, p).toContain(p);
     for (const p of OWNED_CITYGEN) expect(NAMED, p).toContain(p);
   });
@@ -197,7 +200,7 @@ describe('T10A-12: the OWNED_CITYGEN grant covers the package this card creates,
     ]) {
       expect(c16Verdict('city/t10a-12', [p]), p).toEqual({ status: 'fail', outside: [p] });
     }
-    // And the list holds exactly twenty entries - not one more, not one fewer.
-    expect(OWNED_CITYGEN).toHaveLength(20);
+    // And the list holds exactly twenty-three entries - not one more, not one fewer.
+    expect(OWNED_CITYGEN).toHaveLength(23);
   });
 });
