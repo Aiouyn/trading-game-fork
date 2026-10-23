@@ -18,7 +18,7 @@ describe("17B S1 appearance", () => {
     const c = mockChannels(new URLSearchParams("rank=R3&shells=r0,r1,r2,r3&owned=cos_shell_glass"));
     expect(availableShells(c.rank, c.entitlements)).toEqual(["r0", "r1", "r2", "r3", "cos_shell_glass"]);
     expect(c.rank).not.toHaveProperty("shellsOwned");
-    expect(c.entitlements.items).toEqual([{ itemId: "cos_shell_glass", slot: "SHELL_STYLE", source: "purchase", labelPurchased: "Purchased", grantedAt: "2026-10-01T00:00:00Z" }]);
+    expect(c.entitlements.items).toEqual([{ itemId: "cos_shell_glass", slot: "SHELL_STYLE", source: "purchase", labelPurchased: true, grantedAt: "2026-10-01T00:00:00Z" }]);
     expect(mockChannels(new URLSearchParams("rank=R2")).rank.shellsEarned).toEqual(["r0", "r1", "r2"]);
   });
 

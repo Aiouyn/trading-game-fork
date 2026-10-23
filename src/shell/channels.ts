@@ -40,10 +40,12 @@ export interface Channels { clock: ClockChannel; rank: RankChannel; me: MeChanne
  * Platform channel `acct:entitlements` (Systems ruling E-64; mirrors GET /api/v1/me/entitlements).
  * Active items only, sorted by itemId, unique. The client never sees accountId, entitlementId, purchaseId or prices.
  */
-export interface EntitlementView { itemId: string; slot: string; source: string; labelPurchased: string; grantedAt: string }
+export interface EntitlementView { itemId: string; slot: string; source: string; labelPurchased: boolean; grantedAt: string }
 export interface AcctEntitlements { items: EntitlementView[] }
 
 export const ENTITLEMENT_KEYS = ["itemId", "slot", "source", "labelPurchased", "grantedAt"] as const;
+/** Every key but `labelPurchased` (E-64 §3: that one is a boolean) is a non-empty string. */
+const STRING_KEYS = ["itemId", "slot", "source", "grantedAt"] as const;
 const FORBIDDEN = /^(accountId|entitlementId|purchaseId)$|price|amount|cost/i;
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
@@ -59,10 +61,14 @@ export function parseEntitlements(raw: unknown): AcctEntitlements {
       if (FORBIDDEN.test(k)) throw new Error(`entitlements[${i}]: forbidden field ${k}`);
       if (!(ENTITLEMENT_KEYS as readonly string[]).includes(k)) throw new Error(`entitlements[${i}]: unexpected field ${k}`);
     }
-    for (const k of ENTITLEMENT_KEYS) if (typeof o[k] !== "string" || o[k] === "") throw new Error(`entitlements[${i}]: missing ${k}`);
+    for (const k of STRING_KEYS) if (typeof o[k] !== "string" || o[k] === "") throw new Error(`entitlements[${i}]: missing ${k}`);
+    // E-64 §3: labelPurchased is a boolean. Typed, not coerced: any non-empty string is truthy, so accepting one
+    // would paint a refunded or unbought item as purchased.
+    if (!("labelPurchased" in o)) throw new Error(`entitlements[${i}]: missing labelPurchased`);
+    if (typeof o.labelPurchased !== "boolean") throw new Error(`entitlements[${i}]: labelPurchased must be a boolean, got ${typeof o.labelPurchased}`);
     const g = o.grantedAt as string;
     if (!ISO_UTC.test(g) || Number.isNaN(Date.parse(g))) throw new Error(`entitlements[${i}]: bad grantedAt`);
-    return { itemId: o.itemId as string, slot: o.slot as string, source: o.source as string, labelPurchased: o.labelPurchased as string, grantedAt: g };
+    return { itemId: o.itemId as string, slot: o.slot as string, source: o.source as string, labelPurchased: o.labelPurchased, grantedAt: g };
   });
   for (let i = 1; i < items.length; i++) {
     if (items[i].itemId === items[i - 1].itemId) throw new Error(`entitlements: duplicate itemId ${items[i].itemId}`);

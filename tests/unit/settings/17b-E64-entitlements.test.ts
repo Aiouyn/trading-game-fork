@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ownedShells, parseEntitlements } from "@/shell/channels";
 
 const item = (itemId: string, extra: Record<string, unknown> = {}) => ({
-  itemId, slot: "SHELL_STYLE", source: "purchase", labelPurchased: "Purchased", grantedAt: "2026-10-01T12:00:00Z", ...extra,
+  itemId, slot: "SHELL_STYLE", source: "purchase", labelPurchased: true, grantedAt: "2026-10-01T12:00:00Z", ...extra,
 });
 
 describe("E-64 acct:entitlements", () => {
@@ -31,5 +31,22 @@ describe("E-64 acct:entitlements", () => {
     expect(() => parseEntitlements({})).toThrow();
     expect(() => parseEntitlements({ items: [], accountId: "a" })).toThrow();
     expect(() => parseEntitlements({ items: [item("cos_shell_glass", { colour: "x" })] })).toThrow(/unexpected/);
+  });
+  // E-64 §3: `labelPurchased: boolean`. A string is rejected, never coerced -- "no" is truthy, so coercion would
+  // display a refunded item as purchased.
+  it("accepts a boolean labelPurchased and rejects every string form", () => {
+    const row = (v: unknown) => item("cos_shell_glass", { labelPurchased: v });
+    for (const s of ["Purchased", "no", "false", "", "0"]) expect(() => parseEntitlements({ items: [row(s)] })).toThrow(/labelPurchased/);
+    for (const v of [1, null, {}]) expect(() => parseEntitlements({ items: [row(v)] })).toThrow(/labelPurchased/);
+    expect(parseEntitlements({ items: [row(true)] }).items[0].labelPurchased).toBe(true);
+    expect(parseEntitlements({ items: [row(false)] }).items[0].labelPurchased).toBe(false);
+  });
+  it("ownedShells keeps SHELL_STYLE items with a cos_shell_ id and drops each of the two non-reasons", () => {
+    const e = parseEntitlements({ items: [
+      item("cos_badge_gold"),                    // SHELL_STYLE slot, but not a shell id
+      item("cos_shell_emote", { slot: "EMOTE" }), // a shell id, but the wrong slot
+      item("cos_shell_glass"),                   // owned: both hold
+    ] });
+    expect(ownedShells(e)).toEqual(["cos_shell_glass"]);
   });
 });

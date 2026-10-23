@@ -158,6 +158,8 @@ test("S1-06: shell list, Purchased chip, selection applies shell-r1", async ({ p
   await openAppearance(page, info, "?rank=R3&shells=r0,r1,r2,r3&owned=cos_shell_glass");
   await expect(page.locator(".shell-row")).toHaveCount(5);
   await expect(page.getByTestId("shell-cos_shell_glass").getByTestId("purchased")).toHaveText("Purchased");
+  // E-64 §3: exactly one row is labelled purchased -- the chip is not painted on every shell.
+  await expect(page.getByTestId("shell-list").getByTestId("purchased")).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.classList.contains("shell-r3"))).toBe(true);
   await page.getByTestId("shell-r1").click();
   const cls = await page.evaluate(() => [...document.documentElement.classList]);

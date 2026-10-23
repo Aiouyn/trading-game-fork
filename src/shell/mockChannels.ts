@@ -104,7 +104,7 @@ export function mockShells(q: URLSearchParams, rank: Rank): ShellId[] {
 export function mockEntitlements(q: URLSearchParams): AcctEntitlements {
   const owned = MOCK_HOOKS ? (q.get("owned") ?? "").split(",").filter((v) => /^cos_shell_[a-z0-9_]+$/.test(v)) : [];
   const items = [...new Set(owned)].sort().map((itemId) => ({
-    itemId, slot: "SHELL_STYLE", source: "purchase", labelPurchased: "Purchased", grantedAt: "2026-10-01T00:00:00Z",
+    itemId, slot: "SHELL_STYLE", source: "purchase", labelPurchased: true, grantedAt: "2026-10-01T00:00:00Z",
   }));
   return parseEntitlements({ items });
 }
