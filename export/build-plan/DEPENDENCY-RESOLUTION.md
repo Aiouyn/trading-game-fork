@@ -67,7 +67,7 @@ Found while matching; each one is a card-text defect, listed here rather than si
 |---|---|---|
 | T05-01, T05-12 | `ownerChain(store, entityId)` | 03 ships `rootOwnerOf(rt, id)` in `world.ts:154`; `ownerChain` exists nowhere |
 | T05-01 | `CAPCON_LEVY` | not a 03 code: `T04-14:95-96` registers it (SINK, "requester 05"). The edge now carries T04-14 |
-| T05-10 | `tradingLevers`, `reportTaxableNotional` | neither name is shipped by any card or package. `tradingLevers` is `T03-24`'s `levyBp`/`LEVER_SPEC` plus the `levy_free_daily_notional` param (that edge is carried). `reportTaxableNotional` is unshipped **and has no shippable substitute**: `T03-21:87` ships `securitiesTxTax(env: TemplateEnv, ...)` for requesters 05 and 06, but a `TemplateEnv` needs 03's `catalog` and `rail`, so a 05 phase cannot call it. The row therefore stays unresolved (Table 2) |
+| T05-10 | `reportTaxableNotional` | the name is shipped by no card or package. The card reads the L3 levers through `T03-24`'s `levyBp`/`LEVER_SPEC` and the `levy_free_daily_notional` param, so that edge is carried. `reportTaxableNotional` is unshipped **and has no shippable substitute**: `T03-21:87` ships `securitiesTxTax(env: TemplateEnv, ...)` for requesters 05 and 06, but a `TemplateEnv` needs 03's `catalog` and `rail`, so a 05 phase cannot call it. The row therefore stays unresolved (Table 2) |
 | T06A-02, T06B-09 | `ultimateOwnerOf`, `controlledEntities` | no 03 card ships either name |
 | T06A-05, T06B-05 | `splitPositions`, `cancelShares` | no 03 card ships either name |
 | T06A-13, T06A-14 | `elasticSectorOf`, `rotatingLabel` | no 03 card ships either name |
@@ -166,7 +166,7 @@ Pass 3 (qa2) found that two of those corrections were still wrong in the same wa
 |---|---|---|---|
 | T06A-18 | `T03-28` | - | `InvariantCtx` is imported at `invariants.ts:14` and never re-exported; T03-28's Exports name `LEDGER_INVARIANTS`, not `InvariantCtx`. `grep -rn 'export .*InvariantCtx' packages/engine/ledger` = 0 matches |
 | T06C-09 | `T03-05` (pass 3) | `T03-02`, `T03-08` | the type `ReasonCatalog` is **declared by `T03-02:54`**; `T03-05:32` only imports it and `T03-05:54` ships the forbidden `getCatalog`. The catalog value is read through `LedgerWorld.catalog` (`T03-08`) |
-| T05-10 | - | `T03-24` kept, `T03-??` re-opened (pass 3) | `tradingLevers` and `reportTaxableNotional` ship nowhere, and the tax half has no shippable substitute: `T03-21:87`'s `securitiesTxTax` takes a `TemplateEnv` that needs 03's `catalog` and `rail`, so a 05 phase cannot call it. The row is unresolved (Table 2), not `certain` |
+| T05-10 | - | `T03-24` kept, `T03-??` re-opened (pass 3) | `reportTaxableNotional` ships nowhere and has no shippable substitute: `T03-21:87`'s `securitiesTxTax` takes a `TemplateEnv` that needs 03's `catalog` and `rail`, so a 05 phase cannot call it. The row is unresolved (Table 2), not `certain` |
 | T05-01 | - | `T04-14` | `CAPCON_LEVY` is registered by `T04-14:95-96`, not by a 03 card; its `T04-??` edge named only `T04-01` |
 
 Pass 2: edge count 84 -> 86, resolved set 53, problems 306 -> 253. Pass 3: **52 resolved rows / 81 edges**, plus `T05-10`'s five carried edges (86 real edges in the plan), problems 306 -> **254**.
