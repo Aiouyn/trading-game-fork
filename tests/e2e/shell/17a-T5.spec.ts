@@ -22,30 +22,54 @@ const axe = async (page: Page, label: string) => {
   expect([label, r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)]).toEqual([label, []]);
 };
 const width = (page: Page, sel: string) => page.locator(sel).first().evaluate((e) => e.getBoundingClientRect().width);
+// The pill is content-sized, so its total width is a glyph-advance number: the same CSS and the same
+// text measure 279.546875 with Inter on Windows and exactly 282.000 on the Linux runner (the CI
+// failure shot puts the borders at x=579 and x=860), a 2.45 px gap no ±1 pin can span. Assert the
+// box model instead — padding, border, gap, height and the width identity — which the font can't move.
+type Box = { w: number; h: number; pad: number[]; border: number[]; gap: number; kids: number[] };
+const box = (page: Page, sel: string): Promise<Box> => page.locator(sel).first().evaluate((e) => {
+  const cs = getComputedStyle(e);
+  const px = (v: string) => parseFloat(v);
+  const r = e.getBoundingClientRect();
+  return {
+    w: r.width, h: r.height,
+    pad: [px(cs.paddingTop), px(cs.paddingRight), px(cs.paddingBottom), px(cs.paddingLeft)],
+    border: [px(cs.borderTopWidth), px(cs.borderRightWidth), px(cs.borderBottomWidth), px(cs.borderLeftWidth)],
+    gap: px(cs.columnGap),
+    // .load-state-body is display: contents, so these are the flex items the width is made of.
+    kids: [...e.querySelectorAll(":scope > .load-state-body > *")].map((n) => n.getBoundingClientRect().width),
+  };
+});
+const PILL = { pad: [0, 8, 0, 12], border: [1, 1, 1, 1], gap: 6, h: 46 };
+async function expectPill(page: Page) {
+  const b = await box(page, ".load-state");
+  expect([b.pad, b.border, b.gap, b.h]).toEqual([PILL.pad, PILL.border, PILL.gap, PILL.h]);
+  const want = b.pad[1]! + b.pad[3]! + b.border[1]! + b.border[3]! + b.gap * (b.kids.length - 1) + b.kids.reduce((a, n) => a + n, 0);
+  expect(Math.abs(b.w - want)).toBeLessThanOrEqual(1);
+  return b;
+}
 
-test("T5-01 desktop pills: error 191, offline 280, Retry slot 70; Retry doesn't change the width", async ({ page, context }, info) => {
+test("T5-01 desktop pills: box model 12/8 padding, 1 px border, 6 gap, 44 px Retry slot; Retry doesn't change the width", async ({ page, context }, info) => {
   desktopOnly(info.project.name);
   await boot(page, "/?load=fail");
   await expect(page.getByTestId("load-error")).toBeVisible();
-  const err = await width(page, ".load-state");
-  const slot = await width(page, ".load-retry");
-  expect(Math.abs(err - 191)).toBeLessThanOrEqual(1);
-  expect(Math.abs(slot - 70)).toBeLessThanOrEqual(1);
+  // Fonts settle before the first measurement: the box-model checks don't depend on the family, but the
+  // "Retry doesn't change the width" comparison must not straddle a swap.
+  await page.evaluate(async () => { await document.fonts.ready; });
+  const err = await expectPill(page);
+  const slot = await box(page, ".load-retry");
+  expect([slot.pad, slot.w >= 44, slot.h >= 44]).toEqual([[0, 4, 0, 4], true, true]);
   await shot(page, "pill-error");
   await axe(page, "pill-error");
   await page.getByTestId("load-retry").click();
   await expect(page.getByTestId("load-retry")).toHaveText("Retrying…");
-  expect(Math.abs((await width(page, ".load-state")) - err)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs((await width(page, ".load-state")) - err.w)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs((await width(page, ".load-retry")) - slot.w)).toBeLessThanOrEqual(0.5);
   await shot(page, "pill-retrying");
   await expect(page.getByTestId("load-retry")).toHaveText("Retry");
   await context.setOffline(true);
   await expect(page.getByTestId("offline-state")).toBeVisible();
-  // 280, not 282: the pill is content-sized and its Retry slot reserves the hidden pseudo-label "Retrying…".
-  // That label lays out with fallback metrics when the webfont has not been applied to it: forcing it to
-  // "Inter Fallback" makes this exact pill 282.859375 — the 282 in the committed baseline shot — while Inter
-  // gives 279.546875. Rebuilt on this machine, 7a4d907 (the commit that pinned 282) and 3c010fe both measure
-  // 279.546875, so 280 ± 1 is the pill's real width; 282 pinned a font-loading state, not a layout.
-  expect(Math.abs((await width(page, ".load-state")) - 280)).toBeLessThanOrEqual(1);
+  await expectPill(page);
   await shot(page, "pill-offline");
   await axe(page, "pill-offline");
   await context.setOffline(false);
