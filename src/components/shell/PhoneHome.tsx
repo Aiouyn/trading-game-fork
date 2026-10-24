@@ -203,8 +203,16 @@ export function PhoneHome() {
   const progress = next ? Math.min(1, Math.max(0, Number(me.nw) / Number(next.at))) : 1;
   const edge = useRef<{ x: number; y: number } | null>(null);
   // Edge gestures (17 §3.2.3): swipe up on the edge bar = Home; swipe from the left edge = back.
+  // A drag that starts at the left edge must not start a text selection: while a selection drag runs,
+  // Chromium cancels the pointer (measured on swipe 2: pointerdown → pointercancel, no pointerup), so
+  // goBack() never runs and the back gesture is silently dropped; the drag also left a visible selection.
+  // Cancelling the pointerdown default inside the edge zone stops the selection starting (measured: T4-07
+  // 3/3, and a tap on the chevron's x = 12 sliver — inside the zone, app-back starts at x = 0 — still clicks).
   const gestures = {
-    onPointerDown: (e: RPointerEvent) => { edge.current = { x: e.clientX, y: e.clientY }; },
+    onPointerDown: (e: RPointerEvent) => {
+      edge.current = { x: e.clientX, y: e.clientY };
+      if (e.clientX <= EDGE_START) e.preventDefault();
+    },
     onPointerUp: (e: RPointerEvent) => {
       const g = edge.current;
       edge.current = null;
